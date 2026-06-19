@@ -1,0 +1,1170 @@
+const iosSenior = [
+  {
+    id: 'observable',
+    title: '@Observable (iOS 17+)',
+    icon: '🔭',
+    summary: 'Macro de Swift 5.9 que reemplaza ObservableObject + @Published. Más simple, más eficiente.',
+    content: [
+      {
+        type: 'text',
+        body: `<p><code>@Observable</code> (iOS 17+, Swift 5.9) es la nueva forma de crear ViewModels observables. Reemplaza el patrón <code>ObservableObject + @Published</code> con una macro más sencilla y un sistema de observación más eficiente que actualiza solo las Views que realmente leen cada propiedad.</p>
+        <h4>Ventajas sobre ObservableObject</h4>
+        <ul>
+          <li>Menos código: sin <code>@Published</code> en cada propiedad</li>
+          <li>Más eficiente: SwiftUI rastrea exactamente qué propiedad lee cada View, evitando actualizaciones innecesarias</li>
+          <li>Sin <code>@StateObject/@ObservedObject</code>: basta con <code>@State</code> para crear el objeto, y simplemente una variable para observarlo</li>
+        </ul>
+        <h4>@Bindable</h4>
+        <p>Para crear <code>Binding</code>s de propiedades de un <code>@Observable</code>, usa <code>@Bindable</code>.</p>
+        <h4>Retrocompatibilidad</h4>
+        <p>Si necesitas soportar iOS 16 o anterior, sigue usando <code>ObservableObject + @Published</code>. Puedes usar ambos patrones en la misma app.</p>`
+      },
+      {
+        type: 'code',
+        lang: 'swift',
+        code: `import Observation
+
+// ── Antes (iOS 15/16): ObservableObject ──────────────────
+class OldViewModel: ObservableObject {
+    @Published var users: [User] = []
+    @Published var isLoading = false
+    @Published var searchQuery = ""
+}
+// En View: @StateObject private var vm = OldViewModel()
+
+// ── Ahora (iOS 17+): @Observable ─────────────────────────
+@Observable
+class UserViewModel {
+    var users: [User] = []        // sin @Published
+    var isLoading = false
+    var searchQuery = ""
+    // private(set) sigue funcionando
+    private(set) var lastUpdated: Date? = nil
+
+    private let repository: UserRepository
+
+    init(repository: UserRepository = UserRepositoryImpl()) {
+        self.repository = repository
+    }
+
+    @MainActor
+    func loadUsers() async {
+        isLoading = true
+        defer { isLoading = false }
+        do {
+            users = try await repository.fetchUsers()
+            lastUpdated = Date()
+        } catch {
+            print("Error: \\(error)")
+        }
+    }
+}
+
+// En Views: solo @State para crear, nada para observar
+struct UserListView: View {
+    @State private var viewModel = UserViewModel() // crea y posee
+
+    var body: some View {
+        List(viewModel.users) { user in UserRow(user: user) }
+            .task { await viewModel.loadUsers() }
+    }
+}
+
+// Si lo recibes como parámetro, simplemente úsalo
+struct UserDetailView: View {
+    var viewModel: UserViewModel // sin wrapper — SwiftUI detecta qué propiedades usas
+
+    var body: some View {
+        Text(viewModel.users.first?.name ?? "")
+    }
+}
+
+// @Bindable para Bindings
+struct SearchView: View {
+    @Bindable var viewModel: UserViewModel // permite $viewModel.searchQuery
+
+    var body: some View {
+        TextField("Buscar", text: $viewModel.searchQuery)
+    }
+}`
+      },
+      {
+        type: 'tip',
+        body: '<strong>Eficiencia:</strong> Con <code>ObservableObject</code>, si cambia cualquier <code>@Published</code>, se actualizan <em>todas</em> las Views que usen ese objeto. Con <code>@Observable</code>, solo se actualiza la View que realmente leyó la propiedad que cambió.'
+      }
+    ]
+  },
+
+  {
+    id: 'async-await',
+    title: 'async/await y Swift Concurrency',
+    icon: '⚡',
+    summary: 'Concurrencia moderna en Swift. async/await es a Swift lo que coroutines son a Kotlin.',
+    content: [
+      {
+        type: 'text',
+        body: `<p>Swift Concurrency (iOS 15+) introduce <code>async/await</code>, Actors y structured concurrency — conceptos muy similares a las Kotlin Coroutines que ya conoces.</p>
+        <h4>Comparación directa con Kotlin</h4>
+        <ul>
+          <li><code>suspend fun</code> ↔ <code>func ... async</code></li>
+          <li><code>withContext(Dispatchers.IO)</code> ↔ No necesitas cambiar dispatcher; Swift lo gestiona</li>
+          <li><code>launch { }</code> ↔ <code>Task { }</code></li>
+          <li><code>async { }.await()</code> ↔ <code>async let x = ...; let value = try await x</code></li>
+          <li><code>viewModelScope</code> ↔ <code>.task { }</code> modifier o <code>Task</code> en el ViewModel</li>
+        </ul>
+        <h4>Throws + async</h4>
+        <p>En Swift, las funciones asíncronas que pueden fallar son <code>async throws</code>. Se llaman con <code>try await</code>.</p>`
+      },
+      {
+        type: 'code',
+        lang: 'swift',
+        code: `// Función async — equivale a suspend fun en Kotlin
+func fetchUser(id: Int) async throws -> User {
+    let url = URL(string: "https://api.example.com/users/\\(id)")!
+    let (data, _) = try await URLSession.shared.data(from: url)
+    return try JSONDecoder().decode(User.self, from: data)
+}
+
+// Llamar desde código async
+func loadProfile() async {
+    do {
+        let user = try await fetchUser(id: 42) // espera sin bloquear
+        updateUI(user)
+    } catch {
+        handleError(error)
+    }
+}
+
+// async let: concurrencia paralela (equivale a async/await en Kotlin)
+func loadDashboard() async throws {
+    async let user = fetchUser(id: 42)          // arranca inmediatamente
+    async let posts = fetchPosts(userId: 42)    // arranca en paralelo
+    async let stats = fetchStats(userId: 42)    // también en paralelo
+
+    // Espera a los tres y los desestructura
+    let (loadedUser, loadedPosts, loadedStats) = try await (user, posts, stats)
+    renderDashboard(user: loadedUser, posts: loadedPosts, stats: loadedStats)
+}
+
+// withCheckedContinuation — envolver APIs de callback legacy
+func fetchUserLegacy(id: Int) async throws -> User {
+    try await withCheckedThrowingContinuation { continuation in
+        oldAPI.getUser(id: id) { result in
+            switch result {
+            case .success(let user): continuation.resume(returning: user)
+            case .failure(let error): continuation.resume(throwing: error)
+            }
+        }
+    }
+}
+
+// @MainActor: garantiza ejecución en main thread
+@MainActor
+func updateUI(user: User) {
+    // Siempre en main thread, safe para actualizar UI
+    nameLabel = user.name
+}`
+      },
+      {
+        type: 'code',
+        lang: 'swift',
+        code: `// En SwiftUI: .task modifier (equivale a LaunchedEffect en Compose)
+struct UserView: View {
+    @State private var user: User? = nil
+    let userId: Int
+
+    var body: some View {
+        Group {
+            if let user = user {
+                UserDetail(user: user)
+            } else {
+                ProgressView()
+            }
+        }
+        .task(id: userId) { // se re-ejecuta cuando userId cambia; se cancela al desaparecer
+            user = try? await fetchUser(id: userId)
+        }
+    }
+}
+
+// En ViewModel: Task para lanzar trabajo async desde código síncrono
+@Observable
+class ProductViewModel {
+    var products: [Product] = []
+    private var loadTask: Task<Void, Never>?
+
+    func load() {
+        loadTask?.cancel() // cancela la carga anterior
+        loadTask = Task { @MainActor in
+            products = (try? await repository.fetchProducts()) ?? []
+        }
+    }
+
+    deinit {
+        loadTask?.cancel() // limpia al destruirse el ViewModel
+    }
+}`
+      }
+    ]
+  },
+
+  {
+    id: 'task-taskgroup',
+    title: 'Task y TaskGroup',
+    icon: '🔀',
+    summary: 'Concurrencia estructurada en Swift. Task para una coroutine, TaskGroup para trabajo paralelo dinámico.',
+    content: [
+      {
+        type: 'text',
+        body: `<p>Swift Concurrency es <strong>estructurada</strong>: las tareas tienen un alcance definido y se cancelan automáticamente cuando ese alcance termina. Esto previene fugas y garantiza limpieza.</p>
+        <h4>Task</h4>
+        <ul>
+          <li><code>Task { }</code> — Concurrencia no-estructurada. Lanzar trabajo async desde código síncrono.</li>
+          <li><code>Task(priority: .background) { }</code> — Con prioridad específica.</li>
+          <li><code>Task.cancel()</code> — Solicita cancelación. <code>Task.isCancelled</code> para comprobar.</li>
+          <li><code>try Task.checkCancellation()</code> — Lanza si fue cancelada.</li>
+        </ul>
+        <h4>TaskGroup</h4>
+        <ul>
+          <li><code>withTaskGroup(of:)</code> — Ejecuta tasks en paralelo y recoge resultados.</li>
+          <li><code>withThrowingTaskGroup(of:)</code> — Versión que puede lanzar errores.</li>
+          <li>Structured: si el grupo se cancela, todos los children se cancelan.</li>
+        </ul>`
+      },
+      {
+        type: 'code',
+        lang: 'swift',
+        code: `// Task — lanzar trabajo async desde contexto síncrono
+class DataLoader {
+    private var loadingTask: Task<Void, Never>?
+
+    func startLoading() {
+        loadingTask = Task {
+            await loadData()
+        }
+    }
+
+    func cancel() {
+        loadingTask?.cancel()
+    }
+
+    private func loadData() async {
+        var page = 0
+        while !Task.isCancelled {
+            await fetchPage(page)
+            page += 1
+            try? await Task.sleep(for: .seconds(5))
+        }
+    }
+}
+
+// withTaskGroup — paralelizar N tareas del mismo tipo
+func fetchAllImages(ids: [Int]) async -> [Int: UIImage] {
+    await withTaskGroup(of: (Int, UIImage?).self) { group in
+        for id in ids {
+            group.addTask { // cada una corre en paralelo
+                let image = try? await downloadImage(id: id)
+                return (id, image)
+            }
+        }
+        // Recoge resultados en el orden que terminen
+        var results: [Int: UIImage] = [:]
+        for await (id, image) in group {
+            if let image = image {
+                results[id] = image
+            }
+        }
+        return results
+    }
+}
+
+// withThrowingTaskGroup — si cualquier task falla, cancela las demás
+func loadRequiredData() async throws -> (User, [Post], Stats) {
+    try await withThrowingTaskGroup(of: Never.self) { group in
+        async let user = fetchUser(id: 42)
+        async let posts = fetchPosts(userId: 42)
+        async let stats = fetchStats(userId: 42)
+        return try await (user, posts, stats)
+    }
+}
+
+// Prioridades de Task
+Task(priority: .userInitiated) { /* responde a acción del usuario */ }
+Task(priority: .background) { /* trabajo en background */ }
+Task(priority: .utility) { /* descarga, importación */ }`
+      }
+    ]
+  },
+
+  {
+    id: 'actors',
+    title: 'Actors y @MainActor',
+    icon: '🔒',
+    summary: 'Tipos de referencia thread-safe. Actors protegen su estado con aislamiento. @MainActor garantiza el main thread.',
+    content: [
+      {
+        type: 'text',
+        body: `<p>Los <strong>Actors</strong> son tipos de referencia que garantizan acceso seguro a su estado interno desde múltiples concurrencias. Solo una tarea puede ejecutar código del actor a la vez.</p>
+        <h4>Cómo funciona</h4>
+        <ul>
+          <li>Acceder a propiedades/métodos de un actor desde fuera requiere <code>await</code></li>
+          <li>El compilador garantiza que no haya data races</li>
+          <li><code>nonisolated</code> — Marca métodos que no necesitan el aislamiento del actor</li>
+        </ul>
+        <h4>@MainActor</h4>
+        <p>Es un actor especial que representa el main thread. Marcar una clase/función con <code>@MainActor</code> garantiza que todo su código corra en el main thread — perfecto para ViewModels y UI updates.</p>
+        <h4>Comparación con Kotlin</h4>
+        <ul>
+          <li>Actor en Swift ≈ <code>Mutex</code> + <code>withContext(Dispatchers.IO)</code> en Kotlin</li>
+          <li><code>@MainActor</code> ≈ <code>withContext(Dispatchers.Main)</code></li>
+          <li>La diferencia: Swift lo garantiza en compile-time</li>
+        </ul>`
+      },
+      {
+        type: 'code',
+        lang: 'swift',
+        code: `// Actor — protege su estado de accesos concurrentes
+actor ImageCache {
+    private var cache: [URL: UIImage] = [:]
+
+    func image(for url: URL) -> UIImage? {
+        cache[url]
+    }
+
+    func store(_ image: UIImage, for url: URL) {
+        cache[url] = image
+    }
+
+    func clear() {
+        cache.removeAll()
+    }
+
+    // nonisolated: no accede al estado del actor
+    nonisolated func cacheDirectory() -> URL {
+        FileManager.default.temporaryDirectory
+    }
+}
+
+// Usar el actor — requiere await desde fuera
+let cache = ImageCache()
+
+Task {
+    // await para cada acceso al actor
+    if let cached = await cache.image(for: url) {
+        showImage(cached)
+    } else {
+        let image = try await downloadImage(from: url)
+        await cache.store(image, for: url)
+        showImage(image)
+    }
+
+    // nonisolated: sin await
+    let dir = cache.cacheDirectory() // no necesita await
+}
+
+// @MainActor — ejecuta siempre en main thread
+@MainActor
+class UserViewModel: ObservableObject {
+    @Published var users: [User] = []
+    @Published var isLoading = false
+
+    // Todo este código corre en main thread automáticamente
+    func loadUsers() async {
+        isLoading = true
+        // Llamar código que no es @MainActor
+        let loaded = await Task.detached(priority: .background) {
+            try? await self.repository.fetchUsers() // background thread
+        }.value
+        users = loaded ?? []
+        isLoading = false
+    }
+}
+
+// Suspender el aislamiento temporal
+@MainActor
+class DownloadManager {
+    func downloadAndProcess(url: URL) async throws -> ProcessedData {
+        let rawData = try await URLSession.shared.data(from: url).0 // no bloquea el main thread (URLSession es seguro)
+        // Para trabajo CPU-intensivo, salir del main thread:
+        return await Task.detached(priority: .userInitiated) {
+            processData(rawData) // background
+        }.value
+    }
+}`
+      }
+    ]
+  },
+
+  {
+    id: 'combine',
+    title: 'Combine Framework',
+    icon: '🔗',
+    summary: 'Framework reactivo de Apple. Publishers, Subscribers y Operators. El RxSwift oficial.',
+    content: [
+      {
+        type: 'text',
+        body: `<p><strong>Combine</strong> (iOS 13+) es el framework reactivo de Apple. Funciona con streams de valores (Publishers) que se transforman con operadores y se consumen con Subscribers. Es el equivalente a RxSwift/RxKotlin.</p>
+        <h4>Conceptos clave</h4>
+        <ul>
+          <li><strong>Publisher</strong> — Emite valores a lo largo del tiempo. Puede emitir un completion (o error).</li>
+          <li><strong>Subscriber</strong> — Consume los valores del Publisher.</li>
+          <li><strong>Operator</strong> — Transforma los valores entre Publisher y Subscriber.</li>
+          <li><strong>AnyCancellable</strong> — Token de suscripción. Cuando se desaloca, cancela la suscripción.</li>
+        </ul>
+        <h4>Combine vs async/await</h4>
+        <ul>
+          <li><strong>Combine:</strong> Ideal para streams continuos (@Published, NotificationCenter, URLSession) y cuando necesitas operadores como debounce, throttle, combineLatest.</li>
+          <li><strong>async/await:</strong> Ideal para operaciones puntuales (una petición de red, una lectura de fichero).</li>
+          <li>En proyectos nuevos iOS 17+: usa async/await + @Observable como base y Combine solo donde los operadores aporten valor.</li>
+        </ul>`
+      },
+      {
+        type: 'code',
+        lang: 'swift',
+        code: `import Combine
+
+// ── Publishers básicos ──────────────────────────────────
+// Just: emite un valor y completa
+let publisher = Just(42)
+    .map { $0 * 2 }
+    .sink { print($0) } // output: 84
+
+// @Published como Publisher
+class SearchViewModel: ObservableObject {
+    @Published var query = ""
+    @Published var results: [Product] = []
+    private var cancellables = Set<AnyCancellable>() // ← guarda las suscripciones
+
+    init() {
+        // El patrón de búsqueda reactiva
+        $query                           // Publisher<String, Never>
+            .debounce(for: .milliseconds(300), scheduler: DispatchQueue.main)
+            .removeDuplicates()
+            .filter { $0.count >= 2 }
+            .flatMap { [weak self] query -> AnyPublisher<[Product], Never> in
+                guard let self = self else { return Just([]).eraseToAnyPublisher() }
+                return self.search(query: query)
+            }
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$results)       // ← assign to @Published property
+    }
+
+    private func search(query: String) -> AnyPublisher<[Product], Never> {
+        URLSession.shared.dataTaskPublisher(for: buildURL(query: query))
+            .map(\\.data)
+            .decode(type: [Product].self, decoder: JSONDecoder())
+            .replaceError(with: [])      // manejo de errores: reemplaza con vacío
+            .eraseToAnyPublisher()
+    }
+}
+
+// ── Operadores comunes ──────────────────────────────────
+publishers.combineLatest(otherPublisher) { a, b in
+    "\\(a) + \\(b)"
+}
+
+publishers.merge(with: anotherPublisher)
+
+publisher
+    .throttle(for: .seconds(1), scheduler: DispatchQueue.main, latest: true)
+    .catch { _ in Just("fallback") }
+    .retry(3)
+
+// ── Sink vs Assign ──────────────────────────────────────
+// sink: closure con valor y completion
+publisher
+    .sink(
+        receiveCompletion: { completion in
+            if case .failure(let error) = completion { handle(error) }
+        },
+        receiveValue: { value in process(value) }
+    )
+    .store(in: &cancellables) // ← guardar para que no se cancele inmediatamente
+
+// assign: asignar directamente a una propiedad
+publisher
+    .assign(to: \\.name, on: self)
+    .store(in: &cancellables)`
+      }
+    ]
+  },
+
+  {
+    id: 'swiftdata',
+    title: 'SwiftData',
+    icon: '💾',
+    summary: 'Persistencia nativa de Apple para SwiftUI (iOS 17+). Reemplaza Core Data con macros y @Query.',
+    content: [
+      {
+        type: 'text',
+        body: `<p><strong>SwiftData</strong> (iOS 17+) es el ORM moderno de Apple que reemplaza Core Data con una API declarativa y sintaxis de Swift nativa. Es el equivalente a Room en Android.</p>
+        <h4>Componentes</h4>
+        <ul>
+          <li><code>@Model</code> — Macro que convierte una class en un modelo persistido (equivale a <code>@Entity</code> en Room)</li>
+          <li><code>@Query</code> — Property wrapper en Views para fetch automático (se actualiza al cambiar datos)</li>
+          <li><code>ModelContainer</code> — Punto de entrada a la base de datos (equivale a <code>@Database</code> en Room)</li>
+          <li><code>ModelContext</code> — Sesión de trabajo: insert, delete, save (equivale al DAO)</li>
+        </ul>
+        <h4>Comparación Room vs SwiftData</h4>
+        <ul>
+          <li><code>@Entity</code> ↔ <code>@Model</code></li>
+          <li><code>@Dao</code> ↔ <code>ModelContext</code></li>
+          <li><code>@Database</code> ↔ <code>ModelContainer</code></li>
+          <li><code>Flow&lt;List&gt;</code> ↔ <code>@Query</code></li>
+        </ul>`
+      },
+      {
+        type: 'code',
+        lang: 'swift',
+        code: `import SwiftData
+
+// 1. @Model — define la tabla/modelo
+@Model
+class Task {
+    var title: String
+    var isCompleted: Bool
+    var createdAt: Date
+    var priority: Int
+
+    // Relaciones
+    var project: Project?
+    @Relationship(deleteRule: .cascade) var subtasks: [Subtask] = []
+
+    init(title: String, priority: Int = 0) {
+        self.title = title
+        self.isCompleted = false
+        self.createdAt = Date()
+        self.priority = priority
+    }
+}
+
+@Model
+class Project {
+    var name: String
+    @Relationship(deleteRule: .cascade, inverse: \\Task.project) var tasks: [Task] = []
+
+    init(name: String) { self.name = name }
+}
+
+// 2. ModelContainer — en el App entry point
+@main
+struct MyApp: App {
+    var body: some Scene {
+        WindowGroup {
+            ContentView()
+        }
+        .modelContainer(for: [Task.self, Project.self]) // configura la DB
+    }
+}
+
+// 3. @Query en Views — fetch reactivo
+struct TaskListView: View {
+    @Query(
+        filter: #Predicate<Task> { !$0.isCompleted }, // filtro con Predicate
+        sort: \\Task.createdAt,
+        order: .reverse
+    ) private var tasks: [Task] // se actualiza automáticamente al cambiar la DB
+
+    @Environment(\\.modelContext) private var context // para insert/delete/save
+
+    var body: some View {
+        List {
+            ForEach(tasks) { task in
+                TaskRow(task: task)
+                    .swipeActions {
+                        Button(role: .destructive) { context.delete(task) } label: {
+                            Label("Borrar", systemImage: "trash")
+                        }
+                    }
+            }
+        }
+        .toolbar {
+            Button("Añadir") { addTask() }
+        }
+    }
+
+    private func addTask() {
+        let task = Task(title: "Nueva tarea")
+        context.insert(task)       // inserta en la DB
+        try? context.save()        // persiste (opcional: auto-save disponible)
+    }
+}
+
+// 4. Consultas avanzadas con #Predicate
+@Query(filter: #Predicate<Task> {
+    $0.priority > 1 && !$0.isCompleted
+}) var urgentTasks: [Task]`
+      }
+    ]
+  },
+
+  {
+    id: 'architecture-ios',
+    title: 'Arquitectura: MVVM y TCA',
+    icon: '🏛️',
+    summary: 'MVVM con @Observable para la mayoría de casos. TCA (The Composable Architecture) para apps complejas.',
+    content: [
+      {
+        type: 'text',
+        body: `<p>Como en Android, en iOS la elección de arquitectura afecta la testeabilidad, mantenibilidad y escalabilidad de la app.</p>
+        <h4>MVVM en SwiftUI (iOS 17+)</h4>
+        <ul>
+          <li><strong>Model</strong> — Structs de datos, sin lógica de UI</li>
+          <li><strong>ViewModel</strong> — Clase <code>@Observable</code>. Contiene lógica de negocio, llama a servicios, expone estado.</li>
+          <li><strong>View</strong> — Struct SwiftUI. Solo presenta datos, delega acciones al ViewModel.</li>
+        </ul>
+        <h4>TCA (The Composable Architecture)</h4>
+        <p>Framework de Pointfree. Inspirado en Redux/Elm. Arquitectura unidireccional estricta con State, Action, Reducer y Store. Similar al patrón MVI que ya conoces de Android.</p>
+        <ul>
+          <li><strong>State</strong> — Struct inmutable con todo el estado de la feature</li>
+          <li><strong>Action</strong> — Enum con todas las acciones posibles</li>
+          <li><strong>Reducer</strong> — Función pura: (State, Action) → (State, Effect)</li>
+          <li><strong>Store</strong> — Mantiene el State y despacha Actions</li>
+        </ul>
+        <h4>¿Cuándo usar TCA?</h4>
+        <p>Apps complejas con mucho estado compartido, necesidad de testing exhaustivo de lógica, o equipo que ya usa TCA. Para la mayoría de proyectos, MVVM + @Observable es suficiente.</p>`
+      },
+      {
+        type: 'code',
+        lang: 'swift',
+        code: `// ── MVVM con @Observable (iOS 17+) ─────────────────────
+
+// Service/Repository — lógica de acceso a datos
+protocol UserService {
+    func fetchUsers() async throws -> [User]
+    func deleteUser(id: UUID) async throws
+}
+
+// ViewModel
+@Observable
+@MainActor
+class UserListViewModel {
+    var users: [User] = []
+    var isLoading = false
+    var error: String? = nil
+
+    private let userService: UserService
+
+    init(userService: UserService = UserServiceImpl()) {
+        self.userService = userService
+    }
+
+    func loadUsers() async {
+        isLoading = true
+        error = nil
+        do {
+            users = try await userService.fetchUsers()
+        } catch {
+            self.error = error.localizedDescription
+        }
+        isLoading = false
+    }
+
+    func deleteUser(_ user: User) async {
+        do {
+            try await userService.deleteUser(id: user.id)
+            users.removeAll { $0.id == user.id }
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+}
+
+// View — solo presentación
+struct UserListView: View {
+    @State private var viewModel = UserListViewModel()
+
+    var body: some View {
+        Group {
+            if viewModel.isLoading { ProgressView() }
+            else { list }
+        }
+        .task { await viewModel.loadUsers() }
+        .alert("Error", isPresented: Binding(
+            get: { viewModel.error != nil },
+            set: { if !$0 { viewModel.error = nil } }
+        )) {
+            Button("OK") { viewModel.error = nil }
+        } message: {
+            Text(viewModel.error ?? "")
+        }
+    }
+
+    var list: some View {
+        List(viewModel.users) { user in
+            UserRow(user: user)
+                .swipeActions {
+                    Button(role: .destructive) {
+                        Task { await viewModel.deleteUser(user) }
+                    } label: { Label("Borrar", systemImage: "trash") }
+                }
+        }
+    }
+}`
+      }
+    ]
+  },
+
+  {
+    id: 'viewmodifier-viewbuilder',
+    title: 'Custom ViewModifier y ViewBuilder',
+    icon: '🔧',
+    summary: 'ViewModifier para encapsular estilos reutilizables. @ViewBuilder para funciones que retornan vistas condicionales.',
+    content: [
+      {
+        type: 'text',
+        body: `<p>Dos herramientas fundamentales para construir APIs de SwiftUI expresivas y reutilizables.</p>
+        <h4>ViewModifier</h4>
+        <p>Encapsula un conjunto de modificadores en un tipo reutilizable. Ideal para estilos de diseño de tu design system.</p>
+        <h4>@ViewBuilder</h4>
+        <p>Permite que una función/computed property retorne diferentes tipos de View según condiciones (como el body de cualquier View). Sin él, solo podrías retornar un tipo concreto.</p>
+        <h4>@resultBuilder</h4>
+        <p>La tecnología subyacente de <code>@ViewBuilder</code>. Permite DSLs en Swift. SwiftUI está construido enteramente sobre result builders.</p>`
+      },
+      {
+        type: 'code',
+        lang: 'swift',
+        code: `// Custom ViewModifier
+struct PrimaryButtonStyle: ViewModifier {
+    let isLoading: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .font(.headline)
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(isLoading ? Color.gray : Color.blue)
+            .cornerRadius(12)
+            .opacity(isLoading ? 0.7 : 1)
+            .overlay {
+                if isLoading {
+                    ProgressView().tint(.white)
+                }
+            }
+    }
+}
+
+// Extension para uso limpio
+extension View {
+    func primaryButtonStyle(isLoading: Bool = false) -> some View {
+        modifier(PrimaryButtonStyle(isLoading: isLoading))
+    }
+}
+
+// Uso
+Button("Iniciar sesión") { login() }
+    .primaryButtonStyle(isLoading: isLoading)
+
+// ── @ViewBuilder ──────────────────────────────────────
+
+// Sin @ViewBuilder no puedes tener if/else en funciones que retornan View
+@ViewBuilder
+func statusBadge(for status: UserStatus) -> some View {
+    switch status {
+    case .active:
+        HStack {
+            Circle().fill(.green).frame(width: 8, height: 8)
+            Text("Activo").foregroundStyle(.green)
+        }
+    case .inactive:
+        Text("Inactivo").foregroundStyle(.secondary)
+    case .banned:
+        Label("Bloqueado", systemImage: "xmark.shield")
+            .foregroundStyle(.red)
+    }
+}
+
+// Contenedores genéricos con @ViewBuilder
+struct Card<Header: View, Content: View>: View {
+    @ViewBuilder let header: () -> Header
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            header()
+                .padding()
+                .background(.gray.opacity(0.1))
+            content()
+                .padding()
+        }
+        .background(.background)
+        .cornerRadius(12)
+        .shadow(radius: 2)
+    }
+}
+
+// Uso del contenedor genérico
+Card {
+    Text("Usuarios").font(.headline)
+} content: {
+    ForEach(users) { UserRow(user: $0) }
+}`
+      }
+    ]
+  },
+
+  {
+    id: 'preferencekey-geometryreader',
+    title: 'PreferenceKey y GeometryReader',
+    icon: '📏',
+    summary: 'GeometryReader para dimensiones y posición. PreferenceKey para comunicación de hijo a padre.',
+    content: [
+      {
+        type: 'text',
+        body: `<p>Dos herramientas para casos donde el sistema de layout estándar no es suficiente.</p>
+        <h4>GeometryReader</h4>
+        <p>Proporciona el tamaño y la posición de su contenedor. Úsalo con moderación — puede complicar el layout y causar ciclos. Preferir <code>.containerRelativeFrame</code> o <code>.frame(in:)</code> en iOS 17+.</p>
+        <h4>PreferenceKey</h4>
+        <p>Mecanismo para que Views hijas comuniquen valores a sus ancestros. Flujo inverso al de los modifiers (que van de padre a hijo). Casos de uso: sticky headers, medir alturas de hijos, tab bar personalizada.</p>`
+      },
+      {
+        type: 'code',
+        lang: 'swift',
+        code: `// GeometryReader — conocer tamaño del contenedor
+struct AdaptiveCard: View {
+    var body: some View {
+        GeometryReader { proxy in
+            let width = proxy.size.width
+            let isWide = width > 400
+
+            HStack {
+                if isWide {
+                    // Layout horizontal para pantallas anchas
+                    thumbnailView
+                    detailView
+                } else {
+                    // Layout vertical para pantallas estrechas
+                    VStack {
+                        thumbnailView
+                        detailView
+                    }
+                }
+            }
+        }
+        .frame(height: 200) // siempre da un frame cuando uses GeometryReader
+    }
+}
+
+// Posición en coordenadas globales
+struct PositionTracker: View {
+    @State private var position: CGPoint = .zero
+
+    var body: some View {
+        Circle()
+            .frame(width: 50, height: 50)
+            .background(
+                GeometryReader { proxy in
+                    Color.clear.onAppear {
+                        position = proxy.frame(in: .global).origin
+                    }
+                }
+            )
+    }
+}
+
+// ── PreferenceKey — hijo comunica al padre ─────────
+
+// 1. Define la PreferenceKey
+struct HeightPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue()) // toma la altura máxima
+    }
+}
+
+// 2. El hijo reporta su altura
+struct MeasuredView: View {
+    var body: some View {
+        Text("Mídeme")
+            .padding()
+            .background(
+                GeometryReader { proxy in
+                    Color.clear.preference(
+                        key: HeightPreferenceKey.self,
+                        value: proxy.size.height
+                    )
+                }
+            )
+    }
+}
+
+// 3. El padre recibe el valor
+struct ParentView: View {
+    @State private var childHeight: CGFloat = 0
+
+    var body: some View {
+        VStack {
+            MeasuredView()
+            Text("Altura del hijo: \\(childHeight, specifier: "%.0f")pt")
+        }
+        .onPreferenceChange(HeightPreferenceKey.self) { height in
+            childHeight = height
+        }
+    }
+}`
+      }
+    ]
+  },
+
+  {
+    id: 'animation',
+    title: 'Animación y Transitions',
+    icon: '✨',
+    summary: 'withAnimation para animaciones implícitas, .animation() para explícitas, .transition() para entradas y salidas.',
+    content: [
+      {
+        type: 'text',
+        body: `<p>SwiftUI tiene un sistema de animación potente e integrado. Las animaciones son simplemente la interpolación de valores de estado a lo largo del tiempo.</p>
+        <h4>Tipos de animación</h4>
+        <ul>
+          <li><strong>Implícita</strong> — <code>withAnimation { estado = nuevo }</code> anima todos los cambios dentro del bloque.</li>
+          <li><strong>Explícita</strong> — <code>.animation(.spring(), value: valorObservado)</code> anima solo cuando ese valor cambia.</li>
+        </ul>
+        <h4>Curves/Timing</h4>
+        <ul>
+          <li><code>.easeInOut</code>, <code>.easeIn</code>, <code>.easeOut</code>, <code>.linear</code></li>
+          <li><code>.spring()</code>, <code>.spring(duration:bounce:)</code> — iOS 17+</li>
+          <li><code>.bouncy</code>, <code>.smooth</code> — iOS 17+ presets</li>
+        </ul>
+        <h4>Transitions</h4>
+        <p>Definen cómo aparece/desaparece una View del árbol. Se combinan con <code>.combined(with:)</code> y se asimetrían con <code>.asymmetric(insertion:removal:)</code>.</p>`
+      },
+      {
+        type: 'code',
+        lang: 'swift',
+        code: `struct AnimationExamples: View {
+    @State private var isExpanded = false
+    @State private var scale = 1.0
+    @State private var rotation = 0.0
+    @State private var showBadge = false
+
+    var body: some View {
+        VStack(spacing: 30) {
+
+            // withAnimation — implícita
+            Button("Toggle") {
+                withAnimation(.spring(duration: 0.4, bounce: 0.3)) {
+                    isExpanded.toggle()
+                }
+            }
+
+            if isExpanded {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(.blue)
+                    .frame(height: 100)
+                    .transition(.asymmetric(
+                        insertion: .scale.combined(with: .opacity),
+                        removal: .slide
+                    ))
+            }
+
+            // .animation() — explícita (solo anima cuando 'scale' cambia)
+            Circle()
+                .fill(.orange)
+                .frame(width: 80, height: 80)
+                .scaleEffect(scale)
+                .animation(.bouncy, value: scale)
+                .onTapGesture { scale = scale == 1 ? 1.5 : 1 }
+
+            // Rotación continua
+            Image(systemName: "gear")
+                .font(.largeTitle)
+                .rotationEffect(.degrees(rotation))
+                .animation(.linear(duration: 2).repeatForever(autoreverses: false), value: rotation)
+                .onAppear { rotation = 360 }
+
+            // matchedGeometryEffect — la animación más espectacular
+            ZStack {
+                if !isExpanded {
+                    Circle()
+                        .fill(.purple)
+                        .frame(width: 50, height: 50)
+                        .matchedGeometryEffect(id: "hero", in: heroNamespace)
+                }
+                if isExpanded {
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(.purple)
+                        .frame(height: 200)
+                        .matchedGeometryEffect(id: "hero", in: heroNamespace)
+                }
+            }
+        }
+        .padding()
+    }
+
+    @Namespace private var heroNamespace
+}
+
+// Animatable: animar propiedades personalizadas
+struct ProgressArc: Shape, Animatable {
+    var progress: Double // 0.0 - 1.0
+    var animatableData: Double { // qué propiedad animar
+        get { progress }
+        set { progress = newValue }
+    }
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.addArc(center: CGPoint(x: rect.midX, y: rect.midY),
+                    radius: rect.width / 2,
+                    startAngle: .degrees(-90),
+                    endAngle: .degrees(-90 + 360 * progress),
+                    clockwise: false)
+        return path
+    }
+}`
+      }
+    ]
+  },
+
+  {
+    id: 'testing-ios',
+    title: 'Testing en iOS',
+    icon: '🧪',
+    summary: 'XCTest clásico, Swift Testing moderno con @Test y #expect, y UI Testing con XCUITest.',
+    content: [
+      {
+        type: 'text',
+        body: `<p>iOS tiene dos frameworks de testing: <strong>XCTest</strong> (el clásico) y el nuevo <strong>Swift Testing</strong> (iOS 17+, Xcode 16+) que usa macros modernas.</p>
+        <h4>Swift Testing vs XCTest</h4>
+        <ul>
+          <li><code>@Test</code> — Marca una función como test (sin necesidad de heredar de XCTestCase)</li>
+          <li><code>@Suite</code> — Agrupa tests relacionados</li>
+          <li><code>#expect(condition)</code> — Reemplaza XCTAssert*. Más legible, mejor mensajes de error.</li>
+          <li><code>#require(optional)</code> — Desenvuelve optional o falla el test</li>
+          <li>Soporta <code>async/throws</code> nativamente en las funciones de test</li>
+          <li>Tests en paralelo por defecto</li>
+        </ul>
+        <h4>Testing de ViewModels con async/await</h4>
+        <p>Con Swift Concurrency, testear código async es natural: las funciones de test pueden ser <code>async throws</code> directamente.</p>`
+      },
+      {
+        type: 'code',
+        lang: 'swift',
+        code: `import Testing
+import XCTest
+
+// ── Swift Testing (moderno, iOS 17+) ─────────────────────
+
+@Suite("UserViewModel Tests")
+struct UserViewModelTests {
+
+    // Mock del servicio
+    actor MockUserService: UserService {
+        var users: [User] = [User(name: "Ana"), User(name: "Carlos")]
+        var shouldFail = false
+
+        func fetchUsers() async throws -> [User] {
+            if shouldFail { throw URLError(.notConnectedToInternet) }
+            return users
+        }
+
+        func deleteUser(id: UUID) async throws {
+            users.removeAll { $0.id == id }
+        }
+    }
+
+    @Test("Load users successfully")
+    @MainActor
+    func testLoadUsers() async throws {
+        let service = MockUserService()
+        let viewModel = UserListViewModel(userService: service)
+
+        await viewModel.loadUsers()
+
+        #expect(viewModel.users.count == 2)
+        #expect(viewModel.isLoading == false)
+        #expect(viewModel.error == nil)
+    }
+
+    @Test("Handle network error")
+    @MainActor
+    func testNetworkError() async throws {
+        let service = MockUserService()
+        await service.setShouldFail(true)  // actor: await necesario
+        let viewModel = UserListViewModel(userService: service)
+
+        await viewModel.loadUsers()
+
+        #expect(viewModel.error != nil)
+        #expect(viewModel.users.isEmpty)
+    }
+
+    @Test("Delete user removes from list")
+    @MainActor
+    func testDeleteUser() async throws {
+        let service = MockUserService()
+        let viewModel = UserListViewModel(userService: service)
+        await viewModel.loadUsers()
+
+        let userToDelete = try #require(viewModel.users.first) // falla si es nil
+
+        await viewModel.deleteUser(userToDelete)
+
+        #expect(!viewModel.users.contains { $0.id == userToDelete.id })
+    }
+
+    // Tests parametrizados
+    @Test("Search filters correctly", arguments: [
+        ("Ana", 1),
+        ("a", 2), // matches Ana y Carlos
+        ("xyz", 0)
+    ])
+    func testSearch(query: String, expectedCount: Int) async {
+        let viewModel = SearchViewModel()
+        viewModel.query = query
+        try? await Task.sleep(for: .milliseconds(400)) // espera debounce
+        #expect(viewModel.results.count == expectedCount)
+    }
+}
+
+// ── XCTest (compatible iOS 13+) ──────────────────────────
+
+class UserViewModelXCTest: XCTestCase {
+
+    @MainActor
+    func testLoadUsersLegacy() async throws {
+        let service = MockUserService()
+        let viewModel = UserListViewModel(userService: service)
+
+        await viewModel.loadUsers()
+
+        XCTAssertEqual(viewModel.users.count, 2)
+        XCTAssertFalse(viewModel.isLoading)
+        XCTAssertNil(viewModel.error)
+    }
+}
+
+// ── UI Testing con XCUITest ──────────────────────────────
+
+class UserListUITests: XCTestCase {
+    let app = XCUIApplication()
+
+    override func setUpWithError() throws {
+        continueAfterFailure = false
+        app.launchArguments = ["--uitesting"] // flag para usar mocks en la app
+        app.launch()
+    }
+
+    func testUserListDisplayed() {
+        // Navegar a la lista
+        app.tabBars.buttons["Usuarios"].tap()
+
+        // Verificar que se muestran usuarios
+        XCTAssertTrue(app.staticTexts["Ana"].exists)
+        XCTAssertTrue(app.staticTexts["Carlos"].exists)
+    }
+
+    func testDeleteUser() {
+        app.tabBars.buttons["Usuarios"].tap()
+        let cell = app.cells.element(boundBy: 0)
+        cell.swipeLeft()
+        app.buttons["Eliminar"].tap()
+        XCTAssertFalse(app.cells.element(boundBy: 0).staticTexts["Ana"].exists)
+    }
+}`
+      }
+    ]
+  }
+]
