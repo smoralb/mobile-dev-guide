@@ -1,4 +1,4 @@
-const androidBasics = [
+var androidBasics = [
   {
     id: 'activity',
     title: 'Activity & Lifecycle',

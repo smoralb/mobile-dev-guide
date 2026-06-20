@@ -1,4 +1,4 @@
-const androidSenior = [
+var androidSenior = [
   {
     id: 'coroutines',
     title: 'Kotlin Coroutines',

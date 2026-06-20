@@ -1,16 +1,19 @@
+/* ─── Global error display ──────────────────────────────── */
+window.onerror = function(msg, src, line) {
+  var el = document.getElementById('content-area');
+  if (el) el.innerHTML = '<div style="color:#f07178;padding:20px;font-family:monospace;font-size:13px"><strong>JS Error:</strong><br>' + msg + '<br>' + src + ':' + line + '</div>';
+};
+
 /* ─── State ──────────────────────────────────────────────── */
 const state = {
-  platform: 'android',  // 'android' | 'ios'
-  section: 'basics',    // 'basics' | 'senior'
+  platform: 'android',
+  section: 'basics',
   activeTopicId: null,
   searchQuery: ''
 };
 
-/* ─── Data map ───────────────────────────────────────────── */
-const DATA = {
-  android: { basics: androidBasics, senior: androidSenior },
-  ios:     { basics: iosBasics,     senior: iosSenior }
-};
+/* ─── Data map (initialized in init to avoid TDZ issues) ─── */
+var DATA;
 
 /* ─── Accent colors ─────────────────────────────────────── */
 const ACCENT = {
@@ -357,6 +360,10 @@ function updateSidebarActive() {
 
 /* ─── Init ───────────────────────────────────────────────── */
 function init() {
+  DATA = {
+    android: { basics: androidBasics, senior: androidSenior },
+    ios:     { basics: iosBasics,     senior: iosSenior }
+  };
   initDOMRefs();
   applyAccent(state.platform);
   updatePlatformTabs();

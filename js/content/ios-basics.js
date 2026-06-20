@@ -1,4 +1,4 @@
-const iosBasics = [
+var iosBasics = [
   {
     id: 'swift-essentials',
     title: 'Swift Esencial',

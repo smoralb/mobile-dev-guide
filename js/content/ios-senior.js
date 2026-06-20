@@ -1,4 +1,4 @@
-const iosSenior = [
+var iosSenior = [
   {
     id: 'observable',
     title: '@Observable (iOS 17+)',
