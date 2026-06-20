@@ -96,7 +96,7 @@ viewModelScope.launch {
     try {
         val user = fetchUser(42)
     } catch (e: HttpException) {
-        _error.value = "Error de red: ${e.code()}"
+        _error.value = "Error de red: \${e.code()}"
     } catch (e: CancellationException) {
         throw e // ¡SIEMPRE re-lanzar CancellationException!
     }
