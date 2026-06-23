@@ -12,6 +12,68 @@ const state = {
   searchQuery: ''
 };
 
+/* ─── Study Program data ─────────────────────────────────── */
+const PROGRAM = [
+  {
+    title: 'Fase 1 — Arquitectura & Principios',
+    duration: '5-7 días',
+    icon: '🏛️',
+    description: 'La base de cualquier Senior Dev. SOLID y patrones de diseño son los temas más recurrentes en entrevistas técnicas.',
+    lessons: [
+      { platform: 'android', section: 'senior', id: 'solid-principles', icon: '🔷', label: 'Principios SOLID en Kotlin' },
+      { platform: 'android', section: 'senior', id: 'design-patterns', icon: '🧩', label: 'Patrones de Diseño para Mobile' },
+      { platform: 'android', section: 'senior', id: 'architecture', icon: '🏛️', label: 'Clean Architecture + MVVM/MVI' },
+      { platform: 'android', section: 'senior', id: 'hilt', icon: '💉', label: 'Hilt — Inyección de Dependencias' }
+    ]
+  },
+  {
+    title: 'Fase 2 — Kotlin Avanzado',
+    duration: '4-5 días',
+    icon: '⚡',
+    description: 'Kotlin es el lenguaje principal de Revolut. Dominar coroutines y flow te diferencia en la entrevista técnica.',
+    lessons: [
+      { platform: 'android', section: 'senior', id: 'coroutines', icon: '⚡', label: 'Kotlin Coroutines' },
+      { platform: 'android', section: 'senior', id: 'flow', icon: '🌊', label: 'Kotlin Flow' },
+      { platform: 'android', section: 'senior', id: 'kotlin-advanced', icon: '🔬', label: 'Kotlin Avanzado' },
+      { platform: 'android', section: 'senior', id: 'reactive', icon: '🔄', label: 'Programación Reactiva' }
+    ]
+  },
+  {
+    title: 'Fase 3 — Android Core',
+    duration: '4-5 días',
+    icon: '🤖',
+    description: 'Compose es el futuro de la UI en Android. Testing y performance son diferenciadores clave a nivel Senior.',
+    lessons: [
+      { platform: 'android', section: 'senior', id: 'compose', icon: '✨', label: 'Jetpack Compose' },
+      { platform: 'android', section: 'senior', id: 'testing', icon: '🧪', label: 'Testing en Android' },
+      { platform: 'android', section: 'senior', id: 'performance', icon: '🚀', label: 'Performance & Memory' },
+      { platform: 'android', section: 'basics', id: 'viewmodel', icon: '🧠', label: 'ViewModel (repaso + quiz)' },
+      { platform: 'android', section: 'basics', id: 'room', icon: '🗄️', label: 'Room Database (repaso + quiz)' }
+    ]
+  },
+  {
+    title: 'Fase 4 — Especialización Revolut',
+    duration: '3-4 días',
+    icon: '💳',
+    description: 'Temas críticos para apps fintech. Security y Modularization son frecuentes en procesos de selección de Revolut.',
+    lessons: [
+      { platform: 'android', section: 'senior', id: 'security-android', icon: '🔒', label: 'Seguridad en Android (Fintech)' },
+      { platform: 'android', section: 'senior', id: 'modularization', icon: '📦', label: 'Modularización & Multi-módulo' }
+    ]
+  },
+  {
+    title: 'Fase 5 — iOS & Repaso Final',
+    duration: '3-4 días',
+    icon: '🍎',
+    description: 'Si el rol es cross-platform, domina la concurrencia en Swift. Repasa con los quizzes los temas más difíciles.',
+    lessons: [
+      { platform: 'ios', section: 'senior', id: 'async-await', icon: '⚡', label: 'async/await y Swift Concurrency' },
+      { platform: 'ios', section: 'senior', id: 'actors', icon: '🔒', label: 'Actors y @MainActor' },
+      { platform: 'ios', section: 'senior', id: 'architecture-ios', icon: '🏛️', label: 'Arquitectura MVVM y TCA' }
+    ]
+  }
+];
+
 /* ─── Data map (initialized in init to avoid TDZ issues) ─── */
 var DATA;
 
@@ -114,7 +176,8 @@ function renderSectionNav() {
   if (!dom.sectionNav) return;
   const sections = [
     { id: 'basics', label: state.platform === 'android' ? '⚡ Básicos' : '🌱 Básicos' },
-    { id: 'senior', label: '🚀 Senior' }
+    { id: 'senior', label: '🚀 Senior' },
+    { id: 'program', label: '📋 Programa' }
   ];
   dom.sectionNav.innerHTML = sections.map(s =>
     `<button class="section-btn ${state.section === s.id ? 'active' : ''}"
@@ -139,11 +202,10 @@ function renderCards(topics, highlight = '') {
   dom.contentArea.innerHTML = topics.map(topic => buildCard(topic, highlight)).join('');
   attachCardEvents();
   initCodeCopy();
+  initQuizEvents();
 
-  // Restore syntax highlighting
   if (window.Prism) Prism.highlightAll();
 
-  // Open previously active topic
   if (state.activeTopicId && !highlight) {
     const card = document.getElementById(`card-${state.activeTopicId}`);
     if (card) openCard(card, false);
@@ -157,6 +219,7 @@ function buildCard(topic, highlight = '') {
   const summaryHtml = highlight
     ? highlightText(topic.summary, highlight)
     : escapeHtml(topic.summary);
+  const quizHtml = topic.quiz ? buildQuiz(topic.quiz, topic.id) : '';
 
   return `
     <div class="topic-card" id="card-${topic.id}" data-id="${topic.id}">
@@ -174,6 +237,7 @@ function buildCard(topic, highlight = '') {
       <div class="topic-body" id="body-${topic.id}">
         <div class="topic-body-inner">
           ${topic.content.map(block => renderBlock(block)).join('')}
+          ${quizHtml}
         </div>
       </div>
     </div>`;
@@ -230,6 +294,10 @@ function openCard(card, scroll = true) {
   body.style.maxHeight = body.scrollHeight + 'px';
   state.activeTopicId = card.dataset.id;
   updateSidebarActive();
+  // After animation completes, release constraint so quiz can expand freely
+  setTimeout(() => {
+    if (card.classList.contains('active')) body.style.maxHeight = 'none';
+  }, 380);
   if (scroll) {
     setTimeout(() => card.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
   }
@@ -240,7 +308,9 @@ function closeCard(card) {
   const header = card.querySelector('.topic-card-header');
   card.classList.remove('active');
   header.setAttribute('aria-expanded', 'false');
-  body.style.maxHeight = '0';
+  // Constrain before animating to 0
+  body.style.maxHeight = body.scrollHeight + 'px';
+  requestAnimationFrame(() => { body.style.maxHeight = '0'; });
 }
 
 function openTopic(topicId) {
@@ -305,6 +375,10 @@ function showSearchResults(query) {
 function showNormalView() {
   if (dom.searchHeader) dom.searchHeader.classList.remove('visible');
   if (dom.sectionNav) dom.sectionNav.style.display = '';
+  if (state.section === 'program') {
+    renderProgram();
+    return;
+  }
   const topics = DATA[state.platform][state.section];
   renderCards(topics);
 }
@@ -355,6 +429,171 @@ function updateSidebarActive() {
       el.dataset.platform === state.platform &&
       el.dataset.section === state.section
     );
+  });
+}
+
+/* ─── Quiz ───────────────────────────────────────────────── */
+function buildQuiz(quiz, topicId) {
+  if (!quiz || !quiz.questions || !quiz.questions.length) return '';
+  const total = quiz.questions.length;
+  const questionsHtml = quiz.questions.map((q, qi) => {
+    const codeHtml = q.code
+      ? `<div class="quiz-code"><pre class="language-kotlin"><code class="language-kotlin">${escapeHtml(q.code)}</code></pre></div>`
+      : '';
+    const optionsHtml = q.options.map((opt, oi) => `
+      <div class="quiz-option" data-qi="${qi}" data-oi="${oi}">
+        <span class="quiz-option-letter">${String.fromCharCode(65 + oi)}</span>
+        <span class="quiz-option-text">${escapeHtml(opt)}</span>
+      </div>`).join('');
+    return `
+      <div class="quiz-question-block" data-qi="${qi}" data-correct="${q.correct}">
+        <div class="quiz-question-number">Pregunta ${qi + 1} de ${total}</div>
+        <div class="quiz-question-text">${escapeHtml(q.question)}</div>
+        ${codeHtml}
+        <div class="quiz-options">${optionsHtml}</div>
+        <div class="quiz-explanation" hidden>${escapeHtml(q.explanation)}</div>
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="quiz-section" id="quiz-${topicId}" hidden>
+      <div class="quiz-header">
+        <span class="quiz-header-icon">🎯</span>
+        <span>Quiz — ${total} pregunta${total !== 1 ? 's' : ''}</span>
+      </div>
+      ${questionsHtml}
+      <div class="quiz-actions">
+        <button class="quiz-submit-btn" data-quiz="${topicId}">Comprobar respuestas</button>
+        <button class="quiz-retry-btn" data-quiz="${topicId}" hidden>🔄 Reintentar</button>
+      </div>
+      <div class="quiz-results" id="quiz-results-${topicId}" hidden></div>
+    </div>
+    <button class="quiz-toggle-btn" data-quiz="${topicId}">🎯 Practicar con Quiz</button>`;
+}
+
+function initQuizEvents() {
+  $$('.quiz-toggle-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.quiz;
+      const section = document.getElementById(`quiz-${id}`);
+      if (!section) return;
+      const isHidden = section.hidden;
+      section.hidden = !isHidden;
+      btn.textContent = isHidden ? '✕ Cerrar Quiz' : '🎯 Practicar con Quiz';
+      if (isHidden && window.Prism) Prism.highlightAll();
+      if (isHidden) setTimeout(() => section.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 80);
+    });
+  });
+
+  $$('.quiz-option').forEach(opt => {
+    opt.addEventListener('click', () => {
+      if (opt.classList.contains('locked')) return;
+      const qi = opt.dataset.qi;
+      const block = opt.closest('.quiz-question-block');
+      $$('.quiz-option', block).forEach(o => o.classList.remove('selected'));
+      opt.classList.add('selected');
+    });
+  });
+
+  $$('.quiz-submit-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const quizId = btn.dataset.quiz;
+      const section = document.getElementById(`quiz-${quizId}`);
+      const blocks = $$('.quiz-question-block', section);
+      let correct = 0, answered = 0;
+
+      blocks.forEach(block => {
+        const correctIdx = parseInt(block.dataset.correct, 10);
+        const selected = block.querySelector('.quiz-option.selected');
+        if (!selected) return;
+        answered++;
+        const selectedIdx = parseInt(selected.dataset.oi, 10);
+        const allOpts = $$('.quiz-option', block);
+        allOpts.forEach(o => o.classList.add('locked'));
+        allOpts[correctIdx].classList.add('correct');
+        if (selectedIdx === correctIdx) {
+          correct++;
+        } else {
+          selected.classList.add('incorrect');
+        }
+        const expl = block.querySelector('.quiz-explanation');
+        if (expl) expl.hidden = false;
+      });
+
+      if (answered === 0) return;
+
+      const pct = Math.round((correct / blocks.length) * 100);
+      const emoji = pct === 100 ? '🏆' : pct >= 70 ? '💪' : pct >= 50 ? '📚' : '🔄';
+      const scoreColor = pct >= 70 ? '#3ddc84' : pct >= 50 ? '#ffaa00' : '#f07178';
+      const resultsEl = document.getElementById(`quiz-results-${quizId}`);
+      if (resultsEl) {
+        resultsEl.hidden = false;
+        resultsEl.innerHTML = `
+          <span class="quiz-score-emoji">${emoji}</span>
+          <div class="quiz-score-value" style="color:${scoreColor}">${pct}%</div>
+          <div class="quiz-score-label">Has acertado ${correct} de ${blocks.length} preguntas</div>`;
+      }
+      btn.hidden = true;
+      const retryBtn = section.querySelector('.quiz-retry-btn');
+      if (retryBtn) retryBtn.hidden = false;
+    });
+  });
+
+  $$('.quiz-retry-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const quizId = btn.dataset.quiz;
+      const section = document.getElementById(`quiz-${quizId}`);
+      $$('.quiz-option', section).forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'locked'));
+      $$('.quiz-explanation', section).forEach(e => { e.hidden = true; });
+      const resultsEl = document.getElementById(`quiz-results-${quizId}`);
+      if (resultsEl) resultsEl.hidden = true;
+      btn.hidden = true;
+      const submitBtn = section.querySelector('.quiz-submit-btn');
+      if (submitBtn) submitBtn.hidden = false;
+    });
+  });
+}
+
+/* ─── Program view ───────────────────────────────────────── */
+function renderProgram() {
+  if (!dom.contentArea) return;
+  const phasesHtml = PROGRAM.map(phase => {
+    const lessonsHtml = phase.lessons.map(l => `
+      <div class="program-lesson-item"
+           data-platform="${l.platform}" data-section="${l.section}" data-topic="${l.id}">
+        <span class="program-lesson-icon">${l.icon}</span>
+        <span class="program-lesson-label">${escapeHtml(l.label)}</span>
+        <span class="program-lesson-arrow">→</span>
+      </div>`).join('');
+    return `
+      <div class="program-phase">
+        <div class="program-phase-header">
+          <span class="program-phase-icon">${phase.icon}</span>
+          <div>
+            <div class="program-phase-title">${escapeHtml(phase.title)}</div>
+            <div class="program-phase-duration">${escapeHtml(phase.duration)} estimados</div>
+          </div>
+        </div>
+        <p class="program-phase-desc">${escapeHtml(phase.description)}</p>
+        <div class="program-lessons">${lessonsHtml}</div>
+      </div>`;
+  }).join('');
+
+  dom.contentArea.innerHTML = `
+    <div class="program-view">
+      <div class="program-hero">
+        <h2>📋 Programa de Preparación</h2>
+        <p>Revolut — Senior Mobile Developer</p>
+      </div>
+      <div class="program-phases">${phasesHtml}</div>
+    </div>`;
+
+  $$('.program-lesson-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const { platform, section, topic } = item.dataset;
+      navigateTo(platform, section);
+      setTimeout(() => openTopic(topic), 80);
+    });
   });
 }
 

@@ -57,7 +57,66 @@ var androidBasics = [
         type: 'tip',
         body: '<strong>Regla de oro:</strong> No guardes referencias a la Activity dentro de objetos con un ciclo de vida más largo (singletons, ViewModels). Usa el contexto de Aplicación si necesitas un contexto duradero.'
       }
-    ]
+    ],
+    quiz: {
+      questions: [
+        {
+          question: '¿En qué orden ocurren estos métodos del ciclo de vida cuando el usuario abre una Activity?',
+          options: [
+            'onStart() → onCreate() → onResume()',
+            'onCreate() → onStart() → onResume()',
+            'onResume() → onCreate() → onStart()',
+            'onCreate() → onResume() → onStart()'
+          ],
+          correct: 1,
+          explanation: 'El orden correcto al abrir una Activity es: onCreate() (se inicializa la Activity), onStart() (se vuelve visible al usuario), onResume() (la Activity está en primer plano e interactuando con el usuario). Este orden es fundamental y aparece en prácticamente todas las entrevistas Android.'
+        },
+        {
+          question: '¿Qué método se llama cuando el usuario presiona el botón Home para ir a otra app?',
+          options: [
+            'onStop() — la Activity se detiene completamente',
+            'onDestroy() — la Activity se destruye para liberar memoria',
+            'onPause() → onStop() — la Activity pierde el foco y luego deja de ser visible',
+            'onPause() solo — la Activity sigue siendo visible en background'
+          ],
+          correct: 2,
+          explanation: 'Al presionar Home: onPause() (la Activity pierde el foco, otra app va a primer plano) → onStop() (la Activity ya no es visible). La Activity sigue en memoria pero no está activa. Si el sistema necesita memoria, puede llamar a onDestroy(). Al volver: onRestart() → onStart() → onResume().'
+        },
+        {
+          question: '¿Qué sucede con el estado de una Activity al rotar la pantalla por defecto?',
+          options: [
+            'La Activity se pausa y se reanuda, manteniendo todo el estado en memoria',
+            'La Activity se destruye (onDestroy) y se recrea (onCreate) — el estado en memoria se pierde salvo que se guarde',
+            'Android congela la Activity durante la rotación y la descongela después',
+            'La pantalla simplemente gira el contenido, sin recrear la Activity'
+          ],
+          correct: 1,
+          explanation: 'Por defecto, rotar pantalla destruye y recrea la Activity (cambio de configuración). El estado en memoria se pierde. Soluciones: (1) ViewModel — sobrevive a recreaciones, (2) onSaveInstanceState/onRestoreInstanceState para datos pequeños, (3) android:configChanges en el Manifest para gestionar la rotación manualmente (no recomendado habitualmente).'
+        },
+        {
+          question: '¿En qué método del ciclo de vida debes liberar recursos costosos para evitar memory leaks?',
+          options: [
+            'onPause() — es el primer método llamado al dejar la Activity',
+            'onStop() — garantiza liberación cuando la Activity deja de ser visible',
+            'onDestroy() — es el último método, garantiza la limpieza final',
+            'Depende del recurso: listeners en onStop(), recursos de red en onDestroy()'
+          ],
+          correct: 2,
+          explanation: 'La regla general: lo que inicializas en onCreate() lo liberas en onDestroy(). Lo que inicializas en onStart() lo liberas en onStop(). Lo que inicializas en onResume() lo liberas en onPause(). onDestroy() es el último punto garantizado — pero onStop() es más seguro para cosas importantes porque onDestroy() no siempre se llama.'
+        },
+        {
+          question: '¿Por qué no debes realizar operaciones de red o de base de datos en el hilo principal (UI thread)?',
+          options: [
+            'Porque Android no tiene permisos para acceder a red desde el hilo principal',
+            'Porque bloquear el hilo principal más de ~16ms causa ANR (App Not Responding) o frames perdidos — la UI se congela',
+            'Porque Room y Retrofit no están diseñados para funcionar en el hilo principal',
+            'Porque el hilo principal no tiene acceso a Internet sin permisos especiales'
+          ],
+          correct: 1,
+          explanation: 'El hilo principal gestiona todos los eventos de UI: toques, dibujado de frames (cada ~16ms para 60fps). Si lo bloqueas con una operación de red que tarda 500ms, la UI se congela. Android detecta bloqueos > 5 segundos y muestra el diálogo ANR. Usa Coroutines con Dispatchers.IO para operaciones background y actualiza la UI solo desde el hilo principal.'
+        }
+      ]
+    }
   },
 
   {
@@ -411,7 +470,66 @@ class UserFragment : Fragment() {
     }
 }`
       }
-    ]
+    ],
+    quiz: {
+      questions: [
+        {
+          question: '¿Por qué el ViewModel sobrevive a la rotación de pantalla?',
+          options: [
+            'Android guarda el ViewModel en SharedPreferences automáticamente',
+            'El ViewModel se almacena en un ViewModelStore que está vinculado al Activity, no al proceso de recreación — sobrevive a cambios de configuración',
+            'El ViewModel usa onSaveInstanceState internamente para persistir el estado',
+            'Los ViewModels son Singletons de la aplicación y nunca se destruyen'
+          ],
+          correct: 1,
+          explanation: 'El ViewModel se almacena en un ViewModelStore, que sobrevive a cambios de configuración como la rotación (que destruye y recrea la Activity). El ViewModel solo se destruye cuando la Activity finaliza definitivamente (el usuario presiona atrás o llama finish()). Esto lo hace ideal para datos de UI que no deben perderse al rotar.'
+        },
+        {
+          question: '¿Qué diferencia hay entre by viewModels() y by activityViewModels() en un Fragment?',
+          options: [
+            'viewModels() crea un ViewModel por pantalla; activityViewModels() crea un ViewModel por Fragment',
+            'viewModels() crea un ViewModel scoped al Fragment; activityViewModels() crea un ViewModel scoped a la Activity — compartido entre todos los Fragments de esa Activity',
+            'activityViewModels() es más rápido porque el ViewModel ya existe en la Activity',
+            'No hay diferencia, son dos formas de escribir lo mismo'
+          ],
+          correct: 1,
+          explanation: 'viewModels() — el ViewModel es único para ese Fragment y se destruye cuando el Fragment se destruye. activityViewModels() — el ViewModel está en el ViewModelStore de la Activity, compartido entre todos los Fragments. Usar activityViewModels() para compartir estado entre Fragments (ej: un carrito de compra compartido entre PagoFragment y ResumenFragment).'
+        },
+        {
+          question: '¿Por qué debes usar viewModelScope.launch en lugar de GlobalScope.launch en un ViewModel?',
+          options: [
+            'viewModelScope.launch es más rápido que GlobalScope.launch',
+            'viewModelScope se cancela automáticamente al destruirse el ViewModel, evitando coroutines huérfanas y memory leaks',
+            'GlobalScope no puede acceder a los datos del ViewModel',
+            'viewModelScope.launch ejecuta el código en el hilo principal automáticamente'
+          ],
+          correct: 1,
+          explanation: 'viewModelScope está vinculado al ciclo de vida del ViewModel. Cuando el ViewModel se destruye (onCleared()), todas las coroutines lanzadas con viewModelScope se cancelan automáticamente. GlobalScope no tiene este mecanismo — las coroutines siguen ejecutándose aunque el ViewModel (y la pantalla) ya no existan, causando memory leaks y posibles crashes.'
+        },
+        {
+          question: '¿Qué ventaja tiene StateFlow sobre LiveData para exponer el estado de UI?',
+          options: [
+            'StateFlow es compatible con Java, LiveData no',
+            'LiveData es observable desde cualquier parte de la app sin necesidad de un lifecycle',
+            'StateFlow es Kotlin-first, funciona en coroutines sin necesidad de extensions, permite operadores de Flow (map, filter, combine) y es testeable sin Android framework',
+            'No hay ventaja real — son equivalentes en funcionalidad'
+          ],
+          correct: 2,
+          explanation: 'StateFlow tiene varias ventajas sobre LiveData: (1) es Kotlin-first y funciona naturalmente con coroutines, (2) admite todos los operadores de Flow (map, filter, combine, debounce), (3) es testeable sin necesidad del Android framework (no requiere Looper), (4) puede usarse en capas de dominio sin importar Android. LiveData sigue siendo válido pero StateFlow es el estándar moderno.'
+        },
+        {
+          question: '¿Cómo se debe observar un StateFlow en un Fragment para evitar problemas de lifecycle?',
+          options: [
+            'viewModel.uiState.observe(viewLifecycleOwner) — como se hace con LiveData',
+            'lifecycleScope.launch { viewModel.uiState.collect { ... } } — colecta siempre',
+            'viewLifecycleOwner.lifecycleScope.launch { repeatOnLifecycle(STARTED) { viewModel.uiState.collect { ... } } }',
+            'viewModel.uiState.observeForever { ... } — sin restricciones de lifecycle'
+          ],
+          correct: 2,
+          explanation: 'repeatOnLifecycle(STARTED) pausa la colección cuando el Fragment va a background (< STARTED) y la reanuda al volver. Sin esto, el flow sigue colectando aunque la UI no sea visible, desperdiciando recursos. viewLifecycleOwner garantiza que el scope se cancela cuando la vista del Fragment se destruye (no cuando el Fragment en sí, que puede existir más tiempo).'
+        }
+      ]
+    }
   },
 
   {
@@ -549,7 +667,74 @@ abstract class AppDatabase : RoomDatabase() {
         type: 'tip',
         body: '<strong>Con Hilt:</strong> Provee el <code>AppDatabase</code> y los DAOs como singletons con <code>@Provides</code>. El Repository recibe el DAO inyectado, manteniendo Room aislado de la capa de dominio.'
       }
-    ]
+    ],
+    quiz: {
+      questions: [
+        {
+          question: '¿Cuáles son los tres componentes principales de Room?',
+          options: [
+            '@Schema, @Table, @Column',
+            '@Entity, @Dao, @Database',
+            '@Model, @Repository, @Singleton',
+            '@Table, @Query, @Database'
+          ],
+          correct: 1,
+          explanation: '@Entity: define la tabla de la BD (una clase Kotlin = una tabla). @Dao (Data Access Object): define las operaciones (queries, inserts, deletes) como funciones Kotlin. @Database: la clase abstracta que extiende RoomDatabase y lista las entities y DAOs. Room genera el código SQL a partir de estas anotaciones.'
+        },
+        {
+          question: '¿Por qué se recomienda que los métodos de DAO que retornan datos devuelvan Flow?',
+          options: [
+            'Flow es obligatorio en Room 2.5+ — los métodos suspend ya no están soportados',
+            'Flow permite observar cambios en la base de datos en tiempo real — cuando se inserta o modifica un dato, los colectores reciben la actualización automáticamente',
+            'Flow es más rápido que suspend para queries que devuelven muchos resultados',
+            'Para compatibilidad con Retrofit — ambos usan Flow como tipo de retorno'
+          ],
+          correct: 1,
+          explanation: 'Un DAO con @Query que retorna Flow<List<T>> se "suscribe" a la tabla. Cuando cualquier operación (INSERT, UPDATE, DELETE) modifica los datos de esa tabla, Room emite automáticamente una nueva lista actualizada al flow. La UI se actualiza en tiempo real sin necesidad de hacer polling. Para operaciones de escritura (INSERT, UPDATE, DELETE), se usa suspend.'
+        },
+        {
+          question: '¿Por qué AppDatabase debe crearse como Singleton?',
+          options: [
+            'Room no permite crear múltiples instancias — lanza una excepción si lo intentas',
+            'Crear múltiples instancias de AppDatabase puede causar corrupción de datos y cada instancia tiene su propio caché — desperdicio de memoria',
+            'El Singleton es solo una convención de estilo, no tiene impacto técnico',
+            'Android destruye automáticamente instancias duplicadas de AppDatabase'
+          ],
+          correct: 1,
+          explanation: 'Room usa una conexión a la base de datos SQLite. Tener múltiples instancias de AppDatabase significa múltiples conexiones, lo que puede causar: (1) condiciones de carrera al escribir datos, (2) cachés de consultas desincronizados entre instancias, (3) consumo innecesario de memoria y recursos de sistema. Se usa el patrón Singleton (o @Singleton de Hilt) para garantizar una única instancia.'
+        },
+        {
+          question: '¿Qué hace la anotación @PrimaryKey(autoGenerate = true)?',
+          options: [
+            'Crea un UUID aleatorio como clave primaria para cada fila',
+            'Room genera automáticamente un ID entero único (auto-incremento) para cada fila insertada, similar a AUTOINCREMENT en SQL',
+            'La clave primaria se genera a partir de las otras columnas de la entidad',
+            'autoGenerate = true activa el modo de clave compuesta (composite key)'
+          ],
+          correct: 1,
+          explanation: '@PrimaryKey(autoGenerate = true) en un campo Int o Long hace que SQLite asigne automáticamente el siguiente número entero disponible al insertar una fila nueva. Si insertas con id = 0, Room lo interpreta como "generar automáticamente". Útil cuando quieres IDs numéricos simples en lugar de UUIDs.'
+        },
+        {
+          question: '¿Qué método de DAO permite insertar múltiples entidades a la vez de forma eficiente?',
+          code: `@Dao
+interface UserDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(users: List<User>)
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertIfNotExists(user: User): Long
+}`,
+          options: [
+            'Solo se puede insertar una entidad a la vez — hay que llamar insert() en un loop',
+            '@Insert acepta tanto una entidad individual como una List o vararg — insertAll(list) inserta todas en una transacción',
+            'Para múltiples inserts se necesita @Transaction y @Query con SQL INSERT INTO',
+            'insertAll solo funciona con arrays, no con List<T>'
+          ],
+          correct: 1,
+          explanation: '@Insert en Room acepta una entidad individual, una lista (List<T>) o vararg. Cuando pasas una lista, Room los inserta todos dentro de una única transacción SQLite — mucho más eficiente que hacer N inserts individuales. onConflict = REPLACE actualiza si ya existe; IGNORE mantiene el valor existente y retorna -1.'
+        }
+      ]
+    }
   },
 
   {

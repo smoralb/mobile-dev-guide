@@ -205,7 +205,77 @@ class ProductViewModel {
     }
 }`
       }
-    ]
+    ],
+    quiz: {
+      questions: [
+        {
+          question: '¿Cuál es la diferencia principal entre async/await en Swift y en Kotlin Coroutines?',
+          options: [
+            'Swift async/await es más rápido porque usa GCD por debajo',
+            'Son conceptualmente equivalentes (función suspendida, sin bloquear el thread), pero en Swift la concurrencia es parte del sistema de tipos — el compilador verifica el aislamiento de actores',
+            'Kotlin async/await solo funciona en Android; Swift async/await también en macOS y Linux',
+            'No hay diferencia — ambos compilan a exactamente el mismo bytecode'
+          ],
+          correct: 1,
+          explanation: 'Conceptualmente son muy similares: funciones que pueden suspenderse sin bloquear el thread. La diferencia clave: Swift tiene el sistema de tipos de concurrencia estructurado (Swift Concurrency) con @Sendable, actors y verificación en compilación de data races. Kotlin tiene structured concurrency con coroutine scopes. Ambos resuelven el mismo problema de forma elegante.'
+        },
+        {
+          question: '¿Qué hace withCheckedThrowingContinuation y cuándo se usa?',
+          options: [
+            'Verifica que una continuación no lanza excepciones en tiempo de ejecución',
+            'Envuelve código basado en callbacks (APIs antiguas) en una función async — permite usar await con APIs que usan completion handlers',
+            'Ejecuta una tarea en background con manejo de errores automático',
+            'Es el equivalente Swift de async let para operaciones paralelas'
+          ],
+          correct: 1,
+          explanation: 'withCheckedThrowingContinuation permite hacer el bridge entre el mundo callback (APIs antiguas de iOS, terceras partes) y async/await. El bloque recibe una continuación — llamas continuation.resume(returning:) para éxito o continuation.resume(throwing:) para error. La función async queda suspendida hasta que llames resume. Essential para migrar APIs legacy a async/await.'
+        },
+        {
+          question: '¿Qué garantía da @MainActor en una función o clase?',
+          options: [
+            '@MainActor hace que la función sea más rápida al ejecutarse en el hilo principal optimizado',
+            '@MainActor garantiza que el código se ejecuta en el main thread — el compilador verifica en tiempo de compilación que no se accede desde otro actor sin await',
+            '@MainActor es equivalente a DispatchQueue.main.async en GCD',
+            '@MainActor solo aplica a clases que heredan de ObservableObject'
+          ],
+          correct: 1,
+          explanation: '@MainActor es un actor especial de Swift que representa el hilo principal. Marcar una clase o función con @MainActor garantiza (verificado por el compilador) que todo su código se ejecuta en el main thread. Las actualizaciones de UI en SwiftUI/UIKit deben estar en @MainActor. El compilador previene accesos erróneos desde otros actores sin await.'
+        },
+        {
+          question: '¿Cómo se cancela una Task en Swift Concurrency?',
+          options: [
+            'task.stop() — método estándar para cancelar una Task inmediatamente',
+            'El sistema cancela automáticamente todas las Tasks al cerrar la app',
+            'Llamando task.cancel() y verificando Task.isCancelled dentro de la Task para responder a la cancelación de forma cooperativa',
+            'Las Tasks no pueden cancelarse — se deben crear con timeouts para que expiren'
+          ],
+          correct: 2,
+          explanation: 'La cancelación en Swift Concurrency es cooperativa: task.cancel() marca la Task como cancelada, pero el código dentro debe verificar Task.isCancelled o usar Task.checkCancellation() para responder. Las operaciones de red async y sleep de Swift ya verifican la cancelación automáticamente y lanzan CancellationError. Similar al modelo de Kotlin Coroutines.'
+        },
+        {
+          question: '¿Para qué sirve async let en Swift?',
+          options: [
+            'Define una variable que se inicializa de forma perezosa (lazy) de forma asíncrona',
+            'Lanza múltiples operaciones asíncronas en paralelo y permite await en cada una cuando se necesita el resultado',
+            'Es el equivalente de @State pero para propiedades asíncronas',
+            'async let es una sintaxis alternativa a Task { } sin diferencias funcionales'
+          ],
+          correct: 1,
+          explanation: 'async let lanza múltiples tareas asíncronas en paralelo (structured concurrency). Sin async let: await fetchUser() + await fetchPosts() = secuencial. Con async let: async let user = fetchUser(); async let posts = fetchPosts(); let (u, p) = await (user, posts) — paralelo. Similar a async { } en Kotlin Coroutines con .await() al final.'
+        },
+        {
+          question: '¿Cómo cancela automáticamente una Task en SwiftUI cuando la vista desaparece?',
+          options: [
+            'SwiftUI no puede cancelar Tasks — hay que hacerlo manualmente en onDisappear',
+            'El modifier .task { } lanza una Task que se cancela automáticamente cuando la vista desaparece o cuando cambian sus dependencias',
+            'Usando .onDisappear { Task.cancel() } — el único método oficial',
+            'La cancelación automática solo funciona con @MainActor Tasks'
+          ],
+          correct: 1,
+          explanation: '.task { } es el equivalente SwiftUI de LaunchedEffect en Compose. Lanza una Task al aparecer la vista y la cancela automáticamente al desaparecer. También puede recibir un valor de dependencia (.task(id: userId)) — si el valor cambia, cancela la Task anterior y lanza una nueva. Elimina la necesidad de onAppear/onDisappear manual para operaciones async.'
+        }
+      ]
+    }
   },
 
   {
@@ -293,7 +363,66 @@ Task(priority: .userInitiated) { /* responde a acción del usuario */ }
 Task(priority: .background) { /* trabajo en background */ }
 Task(priority: .utility) { /* descarga, importación */ }`
       }
-    ]
+    ],
+    quiz: {
+      questions: [
+        {
+          question: '¿Qué son los Actors en Swift y qué problema resuelven?',
+          options: [
+            'Son clases Swift optimizadas para operaciones de red con GCD',
+            'Son tipos de referencia que el compilador garantiza que solo un thread accede a la vez — eliminan data races en tiempo de compilación',
+            'Son protocolos que definen el comportamiento de objetos concurrentes',
+            'Son equivalentes a los DispatchQueue serial en GCD pero con sintaxis Swift'
+          ],
+          correct: 1,
+          explanation: 'Un Actor en Swift es un tipo de referencia (como class) con una garantía: el compilador asegura que solo un thread accede a sus propiedades y métodos a la vez. Elimina data races sin necesidad de locks manuales. El acceso a propiedades de un Actor desde fuera requiere await, señalando que puede suspenderse mientras espera el turno de acceso.'
+        },
+        {
+          question: '¿Qué hace nonisolated en un método de un Actor?',
+          options: [
+            'Permite que el método sea llamado desde fuera del Actor sin await',
+            'Marca el método como thread-safe y no-suspendible — no accede a estado del Actor, por lo que puede llamarse desde cualquier contexto sin necesitar await',
+            'nonisolated desactiva la protección de datos del Actor para ese método',
+            'Permite que el método acceda a datos de otros Actors directamente'
+          ],
+          correct: 1,
+          explanation: 'nonisolated declara que ese método no accede a ningún estado del Actor — puede tener propiedades let inmutables o llamar solo a funciones globales. Al no necesitar el aislamiento del Actor, puede llamarse sin await desde cualquier contexto. Útil para conformar a protocolos que requieren métodos síncronos (Hashable, CustomStringConvertible).'
+        },
+        {
+          question: '¿Cuándo usar withTaskGroup vs múltiples async let?',
+          options: [
+            'Son equivalentes — withTaskGroup solo es necesario cuando el número de tasks supera 5',
+            'async let para un número fijo de tareas paralelas conocido en compilación; withTaskGroup cuando el número de tareas es dinámico (iterar sobre una lista de IDs)',
+            'withTaskGroup tiene mejor rendimiento que async let en todos los casos',
+            'async let no puede manejar errores; withTaskGroup sí — esa es la única diferencia'
+          ],
+          correct: 1,
+          explanation: 'async let: excelente cuando sabes en compilación cuántas operaciones paralelas lanzas (async let user = ...; async let posts = ...). withTaskGroup: cuando el número de tareas depende de datos en runtime (ej: descargar imágenes para N items de una lista). TaskGroup las gestiona dinámicamente con group.addTask { } y for await result in group { }.'
+        },
+        {
+          question: '¿Cómo se accede al estado de un Actor desde @MainActor?',
+          options: [
+            'Directamente — @MainActor tiene acceso privilegiado a todos los Actors',
+            'Con await — el acceso a propiedades y métodos de otro Actor siempre requiere await desde cualquier contexto diferente',
+            'Con Task.detached — para cambiar al contexto del Actor',
+            'Los Actors no pueden compartir datos con @MainActor directamente'
+          ],
+          correct: 1,
+          explanation: 'Cualquier acceso a un Actor desde un contexto diferente (incluido @MainActor) requiere await. El await señala que el código puede suspenderse brevemente esperando su turno para acceder al Actor. Si el Actor está ocupado, la coroutine se suspende sin bloquear el thread. Esto es lo que hace los Actors seguros — la serialización es automática y verificada por el compilador.'
+        },
+        {
+          question: '¿Cuál es la diferencia entre Task { } y Task.detached { }?',
+          options: [
+            'Task.detached es más rápido porque no hereda el contexto del padre',
+            'Task { } hereda el actor/contexto de la tarea que lo crea; Task.detached { } comienza completamente independiente sin heredar ningún contexto ni actor',
+            'Task.detached no puede ser cancelada mientras que Task { } sí',
+            'Son equivalentes — Task.detached es el nombre antiguo de Task { }'
+          ],
+          correct: 1,
+          explanation: 'Task { } hereda el actor actual (si estás en @MainActor, el Task también corre en @MainActor). Task.detached { } no hereda nada — comienza sin actor, en un thread arbitrario. Útil cuando necesitas ejecutar trabajo genuinamente en background desde un contexto de @MainActor sin ejecutarlo en el main thread. Usar con cuidado: Task.detached no propaga cancelación del padre.'
+        }
+      ]
+    }
   },
 
   {
@@ -392,7 +521,76 @@ class DownloadManager {
     }
 }`
       }
-    ]
+    ],
+    quiz: {
+      questions: [
+        {
+          question: '¿Qué garantía proporciona un Actor en Swift sobre el acceso a sus propiedades?',
+          options: [
+            'Las propiedades del Actor son inmutables — no pueden cambiarse tras la inicialización',
+            'El compilador garantiza que solo un contexto accede al Actor a la vez — protección automática contra data races sin locks manuales',
+            'El Actor ejecuta todas sus operaciones en un thread dedicado de alta prioridad',
+            'Las propiedades del Actor son copiadas (value semantics) en cada acceso externo'
+          ],
+          correct: 1,
+          explanation: 'Un Actor tiene aislamiento de datos: el compilador garantiza que su estado interno solo es accesible por un contexto (coroutine) a la vez. Desde fuera, el acceso requiere await — el caller se suspende si el Actor está ocupado. Elimina la necesidad de DispatchQueue, locks, NSLock o cualquier mecanismo manual de sincronización.'
+        },
+        {
+          question: '¿Qué error de compilación provoca este código?',
+          code: `actor BankAccount {
+    var balance: Double = 0.0
+
+    func deposit(_ amount: Double) {
+        balance += amount
+    }
+}
+
+let account = BankAccount()
+print(account.balance) // ← error de compilación`,
+          options: [
+            'balance no puede ser Double en un Actor, debe ser Int',
+            'Actor property \'balance\' must be accessed with await cuando se accede desde fuera del Actor',
+            'print() no puede llamarse con propiedades de Actor',
+            'No hay error — este código compila correctamente'
+          ],
+          correct: 1,
+          explanation: 'Acceder a account.balance desde fuera del Actor sin await es un error de compilación en Swift 5.5+. El compilador fuerza await account.balance para señalar que el acceso puede suspenderse. Dentro del Actor, el acceso es directo (sin await). Esta verificación en tiempo de compilación es lo que hace los Actors seguros por construcción.'
+        },
+        {
+          question: '¿Para qué se usa @MainActor en un ViewModel de SwiftUI?',
+          options: [
+            'Para hacer que el ViewModel sea un Singleton accesible desde cualquier View',
+            'Para garantizar que todas las actualizaciones de @Published y @Observable se publican en el main thread, donde SwiftUI las procesa para actualizar la UI',
+            '@MainActor es obligatorio en todos los ViewModels de SwiftUI',
+            'Para permitir que el ViewModel sea serializable con Codable'
+          ],
+          correct: 1,
+          explanation: '@MainActor en el ViewModel garantiza que todas sus propiedades y métodos se ejecutan en el main thread. SwiftUI requiere que las actualizaciones de estado (@Published, @Observable) ocurran en el main thread. Con @MainActor, el compilador verifica esto. Desde un Actor de background puedes llamar await viewModel.updateUI() — se cambia automáticamente al main thread.'
+        },
+        {
+          question: '¿Cómo hacer trabajo CPU-intensive desde un contexto @MainActor sin bloquear la UI?',
+          options: [
+            'Usar DispatchQueue.global().async { } dentro del @MainActor context',
+            'Task.detached(priority: .userInitiated) { /* CPU work */ } — lanza una tarea no-aislada que no hereda @MainActor',
+            'No es posible — @MainActor siempre bloquea el main thread para trabajo CPU',
+            'await withCheckedContinuation { Thread(target: cpuWork).start() }'
+          ],
+          correct: 1,
+          explanation: 'Task.detached { } no hereda el actor actual — se ejecuta en un thread arbitrario del pool de Swift Concurrency. Para trabajo CPU-intensive desde @MainActor: Task.detached(priority: .userInitiated) { let result = await heavyCPUWork(); await MainActor.run { self.result = result } }. Alternativa: await withTaskExecutorPreference(.globalConcurrent) { } en Swift 6.'
+        },
+        {
+          question: '¿En qué se diferencia un Actor de una clase con DispatchQueue serial en GCD?',
+          options: [
+            'Los Actors son más rápidos porque evitan el overhead de DispatchQueue',
+            'Los Actors tienen verificación en tiempo de compilación de aislamiento de datos; DispatchQueue serial es solo una convención runtime — el compilador no detecta accesos incorrectos',
+            'Los Actors son value types; DispatchQueue es reference type',
+            'DispatchQueue serial permite acceso concurrente a lecturas; Actor no'
+          ],
+          correct: 1,
+          explanation: 'La diferencia crítica: con DispatchQueue serial, el compilador no detecta accesos al estado protegido desde el thread equivocado — es responsabilidad del programador. Con Actors, el compilador verifica en tiempo de compilación que toda propiedad del Actor solo se accede desde su contexto. Errores que con GCD serían bugs en producción, con Actors son errores de compilación.'
+        }
+      ]
+    }
   },
 
   {
@@ -702,7 +900,77 @@ struct UserListView: View {
     }
 }`
       }
-    ]
+    ],
+    quiz: {
+      questions: [
+        {
+          question: '¿Cuál es la diferencia principal entre MVVM con @Observable y el patrón MVI?',
+          options: [
+            'MVVM solo funciona con SwiftUI; MVI es para UIKit',
+            'MVVM puede tener múltiples propiedades observables independientes; MVI usa un único State inmutable con toda la información de la pantalla y Actions que lo transforman',
+            'MVI es más antiguo y está siendo reemplazado por MVVM con @Observable en iOS 17+',
+            'Solo hay diferencias de nomenclatura, son arquitecturas equivalentes'
+          ],
+          correct: 1,
+          explanation: 'MVVM: el ViewModel expone propiedades @Observable individuales (isLoading, users, error). MVI: un único State struct con todo lo necesario, Actions del usuario transforman el estado via un reducer. MVI (popularizado por TCA en iOS) ofrece estado predecible y facilita el testing — dado Action + State inicial → State resultante esperado.'
+        },
+        {
+          question: '¿Qué ventaja aporta @Observable de iOS 17 respecto a ObservableObject?',
+          options: [
+            '@Observable permite herencia múltiple, que ObservableObject no permite',
+            '@Observable usa fine-grained tracking — solo las Views que usan una propiedad específica se actualizan cuando esa propiedad cambia, reduciendo renders innecesarios',
+            '@Observable es compatible con UIKit; ObservableObject solo con SwiftUI',
+            '@Observable es más rápido porque usa el runtime de Objective-C directamente'
+          ],
+          correct: 1,
+          explanation: 'Con ObservableObject + @Published: cualquier cambio en cualquier propiedad @Published notifica a todos los observers. Con @Observable: Swift rastrea exactamente qué propiedades lee cada View — solo esa View se re-renderiza cuando esa propiedad cambia. Menos renders innecesarios = mejor rendimiento, especialmente en listas con muchos items.'
+        },
+        {
+          question: '¿Cómo se aplica el Principio de Responsabilidad Única (SRP) en el patrón MVVM de iOS?',
+          options: [
+            'El ViewModel es el único responsable de todo — lógica de negocio, datos y navegación',
+            'View: solo presentación visual. ViewModel: lógica de presentación y estado. Service/Repository: acceso a datos y lógica de negocio',
+            'SRP no aplica a MVVM — el patrón ya divide las responsabilidades por definición',
+            'La View y el ViewModel deben estar en el mismo fichero para cohesión'
+          ],
+          correct: 1,
+          explanation: 'En MVVM bien aplicado (SRP): View muestra datos y captura input del usuario — no toma decisiones. ViewModel transforma datos para la presentación, gestiona el estado de UI (isLoading, error) y delega lógica de negocio a Services/UseCases. Service/Repository: acceso a datos, lógica de negocio pura (sin SwiftUI). Cada capa es testeable independientemente.'
+        },
+        {
+          question: '¿Cuándo considerarías usar TCA (The Composable Architecture) en lugar de MVVM simple?',
+          options: [
+            'Siempre — TCA es superior a MVVM en todos los casos de uso',
+            'Cuando la app tiene estado compartido complejo entre muchas pantallas, side effects difíciles de gestionar, o necesita testing exhaustivo de estado + efectos de forma determinista',
+            'TCA es solo para apps con más de 100 pantallas — no tiene sentido en apps pequeñas o medianas',
+            'Cuando el equipo ya usa Redux en web — TCA es la versión iOS de Redux'
+          ],
+          correct: 1,
+          explanation: 'TCA brilla en: (1) estado global complejo compartido entre múltiples features, (2) side effects (red, notificaciones) que necesitan testing preciso, (3) navegación programática compleja. Overhead: curva de aprendizaje alta, más boilerplate que MVVM simple. Para apps medianas con MVVM bien organizado y @Observable, TCA puede ser over-engineering.'
+        },
+        {
+          question: '¿Por qué el ViewModel en iOS debe ser @MainActor?',
+          options: [
+            'SwiftUI exige que los ViewModels sean @MainActor para poder usar @State dentro de ellos',
+            'Las propiedades observadas por SwiftUI deben actualizarse en el main thread — @MainActor garantiza esto en tiempo de compilación sin necesidad de DispatchQueue.main.async manual',
+            '@MainActor mejora el rendimiento del ViewModel al usar el thread principal optimizado',
+            'Solo es necesario si el ViewModel usa async/await — sin async, @MainActor no hace nada'
+          ],
+          correct: 1,
+          explanation: 'SwiftUI actualiza la UI en el main thread. Si el ViewModel actualiza propiedades @Observable desde un background thread, puede causar crashes o comportamiento inesperado. @MainActor garantiza (compilador) que todo el código del ViewModel corre en el main thread. Para trabajo background: Task.detached { let data = await fetch(); await MainActor.run { self.data = data } }.'
+        },
+        {
+          question: '¿Qué patrón de repositorio se recomienda en Clean Architecture iOS?',
+          options: [
+            'El ViewModel accede directamente a la API — simplifica la arquitectura',
+            'Protocolo de repositorio en la capa Domain; implementación concreta en la capa Data — el ViewModel depende del protocolo, no de la implementación',
+            'El repositorio es un Singleton global accesible desde cualquier parte',
+            'No existe capa de repositorio en iOS — SwiftData hace innecesario el patrón'
+          ],
+          correct: 1,
+          explanation: 'Mismo principio que en Android: protocolo UserRepository en Domain, implementación UserRepositoryImpl en Data. El ViewModel recibe UserRepository (protocolo) — no sabe si los datos vienen de URLSession, CoreData, SwiftData o caché. En tests, inyectas un MockUserRepository. SwiftData no elimina la necesidad del patrón — la implementación usaría SwiftData internamente.'
+        }
+      ]
+    }
   },
 
   {
