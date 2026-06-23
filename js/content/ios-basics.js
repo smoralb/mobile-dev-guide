@@ -112,9 +112,68 @@ func printAll<T: CustomStringConvertible>(_ items: [T]) {
     items.forEach { print($0.description) }
 }`
       }
-    ]
+    ],
+    quiz: {
+      questions: [
+        {
+          question: '¿Cuál es la diferencia principal entre struct y class en Swift?',
+          options: [
+            'struct es reference type, class es value type',
+            'struct es value type (se copia), class es reference type (se comparte)',
+            'No hay diferencia significativa, ambos se comportan igual',
+            'class se usa solo en SwiftUI, struct solo en UIKit'
+          ],
+          correct: 1,
+          explanation: 'Los structs son value types: al asignar una variable a otra, se crea una copia independiente. Las classes son reference types: al asignar, ambas variables apuntan al mismo objeto en memoria. En SwiftUI, la regla es: modelos de UI como structs, ViewModels/servicios como classes.'
+        },
+        {
+          question: '¿Qué ocurre si intentas acceder al valor de un Optional que es nil usando force unwrapping (!)?',
+          options: [
+            'Retorna nil sin crash',
+            'El compilador lo detecta y no compila',
+            'La app crashea en runtime',
+            'Retorna un valor por defecto del tipo'
+          ],
+          correct: 2,
+          explanation: 'El force unwrapping (!) accede al valor sin verificar si es nil. Si el optional es nil, la app crashea en runtime. Por eso solo debe usarse cuando estás 100% seguro de que hay un valor. Alternativas seguras: if let, guard let, nil coalescing (??), optional chaining (?.).'
+        },
+        {
+          question: '¿Para qué sirve guard let en Swift?',
+          options: [
+            'Para declarar una constante global',
+            'Para desenvolver un optional y salir de la función si es nil, garantizando que el valor existe en el resto del scope',
+            'Para crear un binding entre dos vistas',
+            'Para definir un valor por defecto cuando un optional es nil'
+          ],
+          correct: 1,
+          explanation: 'guard let desenvuelve un optional y, si es nil, ejecuta el bloque else (típicamente return). Si no es nil, la constante existe con valor no-optional en el resto de la función. Es preferido sobre if let anidado porque mantiene el código plano y legible — "early return pattern".'
+        },
+        {
+          question: '¿Qué imprime este código?',
+          code: 'let result: NetworkResult<User> = .loading\nswitch result {\ncase .success(let user): print(user.name)\ncase .failure(let error): print(error)\ncase .loading: print("Cargando...")\n}',
+          options: [
+            'Crash: no se puede switch sobre enum con valores asociados',
+            '"Cargando..."',
+            'nil',
+            'Error de compilación: faltan casos'
+          ],
+          correct: 1,
+          explanation: 'El switch sobre enums en Swift es exhaustivo: debes cubrir todos los casos. Como result es .loading, entra en ese case e imprime "Cargando...". Los enums con valores asociados funcionan como sealed classes en Kotlin, permitiendo extraer el valor con let en cada case.'
+        },
+        {
+          question: '¿Qué significan $0 y $1 en un closure de Swift?',
+          options: [
+            'Son variables globales del scope',
+            'Son shorthand arguments: $0 es el primer parámetro, $1 el segundo, etc.',
+            'Son errors que se propagan automáticamente',
+            'Son referencias a propiedades del objeto'
+          ],
+          correct: 1,
+          explanation: 'Swift permite omitir los nombres de parámetros en closures cortos usando $0, $1, $2... como referencias posicionales. Ejemplo: numbers.sorted { $0 < $1 } es equivalente a numbers.sorted { a, b in a < b }. Reduce verbosidad en operaciones funcionales como map, filter, sorted.'
+        }
+      ]
+    }
   },
-
   {
     id: 'swiftui-view',
     title: 'View Protocol en SwiftUI',
@@ -204,9 +263,56 @@ struct UserCard: View {
     ProfileView(user: User(id: 1, name: "Ana", email: "ana@test.com"))
 }`
       }
-    ]
+    ],
+    quiz: {
+      questions: [
+        {
+          question: '¿Qué propiedad obligatoria requiere el protocolo View en SwiftUI?',
+          options: [
+            'var content: some View',
+            'var body: some View',
+            'func render() -> View',
+            'var view: View'
+          ],
+          correct: 1,
+          explanation: 'El protocolo View requiere una única propiedad: var body: some View. El tipo de retorno "some View" usa opaque return types — el compilador inferirá el tipo concreto, pero no necesitas escribirlo. Cada vez que el estado cambia, SwiftUI reevalúa body y compara con el árbol anterior.'
+        },
+        {
+          question: '¿Qué significa some View como tipo de retorno en Swift?',
+          options: [
+            'Que retorna cualquier View de forma dinámica',
+            'Es un opaque return type: retornas un tipo concreto específico, pero el compilador lo oculta para simplificar la firma',
+            'Que la View puede ser nil (es optional)',
+            'Que retorna múltiples Views simultáneamente'
+          ],
+          correct: 1,
+          explanation: '"some View" es un opaque return type: la función retorna siempre el mismo tipo concreto, pero no quieres escribir el tipo exacto (que puede ser muy largo al componer modifiers). Diferente de "any View" (existential), que permite tipos diferentes en cada llamada y tiene coste de rendimiento."'
+        },
+        {
+          question: '¿Cómo extraes subviews en SwiftUI para mantener body legible?',
+          options: [
+            'Creando clases hijas que heredan de la View padre',
+            'Usando computed properties que retornan some View o extrayendo Views en structs separadas',
+            'Declarando métodos @ViewBuilder dentro del body',
+            'No es posible, body debe contener todo el código'
+          ],
+          correct: 1,
+          explanation: 'SwiftUI no usa herencia de Views. La composición se logra extrayendo subviews: (1) computed properties privadas que retornan some View, (2) structs separadas conformando View. Ambos enfoques mantienen body corto y legible. Por ejemplo: private var header: some View { Text(user.name).font(.headline) }.'
+        },
+        {
+          question: '¿Qué sucede cuando el estado de una View cambia en SwiftUI?',
+          options: [
+            'Se recrea toda la jerarquía de Views desde cero',
+            'SwiftUI reevalúa body, compara el resultado con el árbol anterior (diffing) y actualiza solo las partes que cambiaron',
+            'Se llama a un método invalidate() manualmente',
+            'La View se destruye y se vuelve a crear completamente'
+          ],
+          correct: 1,
+          explanation: 'Cuando el estado cambia, SwiftUI reevalúa body de la View afectada y compara el nuevo árbol con el anterior (similar a virtual DOM en React o recomposición en Compose). Solo las diferencias se aplican al renderizado real. Esto es eficiente: no se recrea toda la UI, solo las partes que cambiaron.'
+        }
+      ]
+    }
   },
-
   {
     id: 'common-views',
     title: 'Vistas Comunes',
@@ -304,9 +410,56 @@ struct UserCard: View {
     }
 }`
       }
-    ]
+    ],
+    quiz: {
+      questions: [
+        {
+          question: '¿Qué vista usas en SwiftUI para cargar una imagen desde una URL remota con placeholder?',
+          options: [
+            'Image(url:) con un modifier .placeholder()',
+            'AsyncImage(url:content:placeholder:)',
+            'URLImage con callback de carga',
+            'Image con modifier .asyncLoad(url:)'
+          ],
+          correct: 1,
+          explanation: 'AsyncImage es la vista nativa de SwiftUI para cargar imágenes desde URL. Acepta un closure content para configurar la imagen cargada y un closure placeholder para mostrar algo (como ProgressView) mientras se descarga. Internamente gestiona la descarga async y la caché básica.'
+        },
+        {
+          question: '¿Qué vista usas para una entrada de texto donde el contenido se oculta (contraseñas)?',
+          options: [
+            'TextField con modifier .isSecure(true)',
+            'SecureField',
+            'TextField con keyboard type .default',
+            'HiddenTextField'
+          ],
+          correct: 1,
+          explanation: 'SecureField es el componente nativo de SwiftUI para entradas de contraseña: oculta los caracteres mientras se escriben. Su API es idéntica a TextField: SecureField("Placeholder", text: $password). No necesita modifiers adicionales para ocultar el texto.'
+        },
+        {
+          question: '¿Cuál es la forma correcta de usar SF Symbols en SwiftUI?',
+          options: [
+            'Image("star.fill")',
+            'Image(systemName: "star.fill")',
+            'SFImage("star.fill")',
+            'Icon(systemName: "star.fill")'
+          ],
+          correct: 1,
+          explanation: 'SF Symbols se cargan con Image(systemName:), mientras que imágenes del asset catalog usan Image("nombre"). Los SF Symbols son los iconos de sistema de Apple con más de 5000 variantes, soportan múltiples pesos y escalas, y se adaptan al tamaño de fuente automáticamente.'
+        },
+        {
+          question: '¿Qué estilo de Picker muestra las opciones como segmentos horizontales en SwiftUI?',
+          options: [
+            '.pickerStyle(.wheel)',
+            '.pickerStyle(.menu)',
+            '.pickerStyle(.segmented)',
+            '.pickerStyle(.automatic)'
+          ],
+          correct: 2,
+          explanation: '.pickerStyle(.segmented) muestra las opciones como segmentos horizontales tipo UISegmentedControl. Otros estilos: .wheel (rueda vertical, típico de selectores de fecha iOS), .menu (menú desplegable), .automatic (el sistema elige según plataforma y contexto).'
+        }
+      ]
+    }
   },
-
   {
     id: 'layout',
     title: 'Layout: Stacks y Grids',
@@ -395,9 +548,56 @@ struct UserCard: View {
     }
 }`
       }
-    ]
+    ],
+    quiz: {
+      questions: [
+        {
+          question: '¿Qué contenedor usas para superponer vistas una encima de otra (z-order)?',
+          options: [
+            'VStack',
+            'HStack',
+            'ZStack',
+            'OverlayStack'
+          ],
+          correct: 2,
+          explanation: 'ZStack superpone sus hijos en el eje Z — el último hijo se dibuja encima. Es útil para badges sobre iconos, texto sobre imágenes, etc. VStack apila verticalmente y HStack horizontalmente. También puedes usar .overlay() como modifier para superponer sin ZStack.'
+        },
+        {
+          question: '¿Qué tipo de GridItem usas para crear tantas columnas como quepan con un ancho mínimo?',
+          options: [
+            'GridItem(.fixed(80))',
+            'GridItem(.flexible(minimum: 80))',
+            'GridItem(.adaptive(minimum: 80))',
+            'GridItem(.auto(minimum: 80))'
+          ],
+          correct: 2,
+          explanation: '.adaptive(minimum:) calcula cuántas columnas caben en el ancho disponible, cada una con al menos el mínimo especificado. .fixed(80) crea columnas de exactamente 80pt. .flexible() distribuye el espacio equitativamente entre las columnas hasta llegar al máximo. Para un grid responsivo, .adaptive es la mejor opción.'
+        },
+        {
+          question: '¿Para qué sirve Spacer() dentro de un HStack?',
+          options: [
+            'Añade una línea divisoria horizontal',
+            'Ocupa todo el espacio disponible, empujando los elementos a los extremos',
+            'Crea un espacio fijo de 16pt',
+            'Centra automáticamente el contenido'
+          ],
+          correct: 1,
+          explanation: 'Spacer() es un elemento flexible que absorbe todo el espacio disponible en su contenedor. En un HStack, un Spacer() entre dos elementos los empuja a los extremos (izquierda y derecha). Útil para layouts con elementos en ambos lados como barra de navegación o celdas de lista.'
+        },
+        {
+          question: '¿Cuál es la diferencia entre VStack y LazyVStack?',
+          options: [
+            'No hay diferencia, LazyVStack es un alias',
+            'VStack renderiza todos sus hijos siempre; LazyVStack solo renderiza los que están visibles en pantalla (bajo demanda)',
+            'LazyVStack no soporta modifiers',
+            'VStack es más eficiente para listas grandes'
+          ],
+          correct: 1,
+          explanation: 'VStack renderiza todos sus hijos inmediatamente, funcionando bien para pocas vistas. LazyVStack solo renderiza las vistas que están siendo mostradas en pantalla, creándolas bajo demanda al hacer scroll. Para listas largas (cientos de items), LazyVStack o LazyVGrid son esenciales para mantener buena performance.'
+        }
+      ]
+    }
   },
-
   {
     id: 'modifiers',
     title: 'Sistema de Modifiers',
@@ -485,9 +685,57 @@ struct DataView: View {
     }
 }`
       }
-    ]
+    ],
+    quiz: {
+      questions: [
+        {
+          question: '¿Qué diferencia visual hay entre estos dos textos?',
+          code: 'Text("Hola").padding().background(.blue)\nText("Hola").background(.blue).padding()',
+          options: [
+            'Son visualmente idénticos, el orden no afecta el resultado',
+            'En el primero el padding tiene fondo azul; en el segundo el padding es transparente',
+            'El primero no tiene padding, el segundo sí',
+            'Solo cambia el color del texto'
+          ],
+          correct: 1,
+          explanation: 'El orden de los modifiers es crucial porque cada modifier envuelve la vista anterior. En el primer caso, background se aplica DESPUÉS de padding, así que el fondo cubre tanto el texto como el padding. En el segundo caso, background se aplica ANTES del padding, así que solo el texto tiene fondo azul y el padding queda transparente.'
+        },
+        {
+          question: '¿Cuál es la ventaja de crear un custom ViewModifier frente a encadenar modifiers directamente?',
+          options: [
+            'Es más rápido en rendimiento',
+            'Permite reutilizar un conjunto de modifiers con un solo nombre, manteniendo el código limpio y consistente',
+            'Es la única forma de aplicar modifiers a una View',
+            'Permite usar modifiers que no están disponibles por defecto'
+          ],
+          correct: 1,
+          explanation: 'Un custom ViewModifier agrupa un conjunto de modifiers reutilizables bajo un solo nombre. Por ejemplo, .cardStyle() en vez de repetir .padding().background().cornerRadius().shadow() en cada sitio. Se combina con una extensión de View para un uso limpio: Text("Hola").cardStyle().'
+        },
+        {
+          question: '¿Qué diferencia hay entre .onAppear y .task para ejecutar código cuando aparece una View?',
+          options: [
+            'No hay diferencia, son sinónimos',
+            '.onAppear ejecuta código síncrono; .task ejecuta código async y se cancela automáticamente cuando la View desaparece',
+            '.task se ejecuta en el hilo principal y .onAppear en background',
+            '.onAppear es para iOS 16+ y .task para iOS 17+'
+          ],
+          correct: 1,
+          explanation: '.task es el equivalente async de .onAppear: (1) permite usar await directamente sin Task { }, (2) el trabajo se cancela automáticamente cuando la View desaparece (la tarea se ejecuta en un scope vinculado al lifecycle de la View), (3) es ideal para cargar datos remotos: .task { data = await fetchData() }.'
+        },
+        {
+          question: '¿Qué modifier usas para añadir una vista encima del contenido existente?',
+          options: [
+            '.background()',
+            '.overlay()',
+            '.zIndex()',
+            '.above()'
+          ],
+          correct: 1,
+          explanation: '.overlay() coloca una vista encima del contenido (en el eje Z), mientras que .background() la coloca detrás. Por ejemplo: Image("photo").overlay(alignment: .bottomTrailing) { Text("Foto") } coloca el texto sobre la imagen en la esquina inferior derecha.'
+        }
+      ]
+    }
   },
-
   {
     id: 'state',
     title: '@State',
@@ -572,7 +820,55 @@ struct ExpandableSection<Content: View>: View {
     }
 }`
       }
-    ]
+    ],
+    quiz: {
+      questions: [
+        {
+          question: '¿Qué hace @State en SwiftUI?',
+          options: [
+            'Convierte la variable en una constante inmutable',
+            'Crea un almacenamiento persistente que SwiftUI gestiona y que al cambiar provoca la recreación de la View',
+            'Sincroniza la variable con una base de datos local',
+            'Reemplaza el ViewModel por completo'
+          ],
+          correct: 1,
+          explanation: '@State es un property wrapper para estado local y privado de una Vista. Cuando el valor cambia, SwiftUI reconstruye la Vista automáticamente. SwiftUI gestiona el almacenamiento en el heap para que persista aunque el struct de la View se recree.'
+        },
+        {
+          question: '¿Qué hace el prefijo $ delante de una variable @State?',
+          options: [
+            'Convierte el valor a un Optional',
+            'Crea un Binding de dos direcciones para que vistas hijas puedan leer y modificar el valor',
+            'Hace que la variable sea global',
+            'Persiste el valor en UserDefaults'
+          ],
+          correct: 1,
+          explanation: 'El prefijo $ delante de una variable @State crea un Binding, que es una referencia bidireccional al estado. Se usa para pasar a vistas hijas que necesitan modificar el estado, como TextField(text: $name) o Toggle(isOn: $isEnabled).'
+        },
+        {
+          question: '¿Cuándo es apropiado usar @State en lugar de un ViewModel con @StateObject?',
+          options: [
+            'Siempre, @State es mejor que @StateObject en todos los casos',
+            'Para estado simple y local como un accordion expandido, un tab seleccionado o la visibilidad de un sheet',
+            'Solo para strings y números enteros',
+            'Nunca, @State está obsoleto desde iOS 16'
+          ],
+          correct: 1,
+          explanation: '@State es para estado local simple: ¿está expandido un accordion? ¿qué tab está seleccionado? ¿está visible un sheet? Si el estado necesita compartirse con múltiples vistas o tiene lógica compleja, se debe subir a un ViewModel con @StateObject.'
+        },
+        {
+          question: '¿Qué sucede con el valor de @State cuando la Vista se destruye?',
+          options: [
+            'El valor se conserva permanentemente en el heap',
+            'El valor se pierde porque @State no sobrevive a la destrucción de la Vista',
+            'El valor se guarda automáticamente en UserDefaults',
+            'El valor se transfiere a la siguiente Vista que se cree'
+          ],
+          correct: 1,
+          explanation: '@State está ligado al ciclo de vida de la Vista. Cuando la Vista se destruye, el estado se pierde. Para persistir datos entre lanzamientos de la app se usa @AppStorage, y para restaurar estado después de que el sistema mate la app se usa @SceneStorage.'
+        }
+      ]
+    }
   },
 
   {
@@ -669,7 +965,55 @@ struct RatingView: View {
     EmailField(text: .constant("test@example.com"))
 }`
       }
-    ]
+    ],
+    quiz: {
+      questions: [
+        {
+          question: '¿Qué es @Binding en SwiftUI?',
+          options: [
+            'Un property wrapper que crea una copia independiente del estado del padre',
+            'Una referencia bidireccional al estado propiedad de otra Vista, permitiendo leer y modificar el valor desde el hijo',
+            'Un contenedor de datos persistente en disco',
+            'Un sustituto de @State a partir de iOS 17'
+          ],
+          correct: 1,
+          explanation: '@Binding crea una referencia bidireccional al estado de otra Vista. El hijo puede leer y modificar el valor, pero el padre sigue siendo el propietario. Se usa para componentes reutilizables como TextField, Toggle, o para controlar sheets y alerts.'
+        },
+        {
+          question: '¿Cómo se pasa un @State como Binding a una vista hija?',
+          options: [
+            'Pasando la variable directamente: Hijo(valor: stateVar)',
+            'Usando el prefijo $: Hijo(valor: $stateVar)',
+            'Declarando @Binding en el padre y @State en el hijo',
+            'Usando un ViewModel intermedio'
+          ],
+          correct: 1,
+          explanation: 'El prefijo $ delante de una variable @State genera un Binding que se puede pasar a vistas hijas. Por ejemplo: TextField("Nombre", text: $name) pasa el Binding al TextField para que pueda leer y escribir el valor.'
+        },
+        {
+          question: '¿Para qué sirve Binding(get:set:) en SwiftUI?',
+          options: [
+            'Para crear un Binding que no se puede modificar',
+            'Para crear un Binding manual que transforma o deriva valores entre la fuente y el consumidor',
+            'Para depurar cambios de estado en la consola',
+            'Para crear un Binding que persiste en el disco'
+          ],
+          correct: 1,
+          explanation: 'Binding(get:set:) permite crear un Binding personalizado que transforma valores. Por ejemplo, convertir un Double a Int para usarlo con un Stepper: Binding(get: { Int(rating) }, set: { rating = Double($0) }). La función get lee el valor y set lo escribe.'
+        },
+        {
+          question: '¿Para qué sirve .constant() en SwiftUI?',
+          options: [
+            'Crea un Binding inmutable que siempre devuelve el mismo valor, ideal para previsualizaciones y tests',
+            'Hace que un @State no pueda modificarse',
+            'Convierte un @Binding en @State',
+            'Persiste el valor en UserDefaults'
+          ],
+          correct: 0,
+          explanation: '.constant(valor) crea un Binding inmutable que siempre devuelve el mismo valor y descarta cualquier escritura. Es útil en previsualizaciones (#Preview) y tests donde necesitas un Binding pero no quieres estado real.'
+        }
+      ]
+    }
   },
 
   {
@@ -760,7 +1104,55 @@ struct UserList: View {
     }
 }`
       }
-    ]
+    ],
+    quiz: {
+      questions: [
+        {
+          question: '¿A qué protocolo debe conformar una clase para usarse con @StateObject?',
+          options: [
+            'Codable',
+            'Identifiable',
+            'ObservableObject',
+            'Equatable'
+          ],
+          correct: 2,
+          explanation: 'Para usar @StateObject o @ObservedObject, la clase debe conformar el protocolo ObservableObject. Las propiedades que notifican cambios se marcan con @Published. Así SwiftUI sabe cuándo reconstruir las vistas que observan ese objeto.'
+        },
+        {
+          question: '¿Cuál es la diferencia clave entre @StateObject y @ObservedObject?',
+          options: [
+            '@StateObject crea y posee el objeto; @ObservedObject recibe el objeto desde el exterior',
+            '@StateObject es para structs y @ObservedObject para classes',
+            'No hay diferencia, son intercambiables',
+            '@ObservedObject solo funciona en iOS 17+'
+          ],
+          correct: 0,
+          explanation: '@StateObject lo usas cuando la Vista crea e inicializa el ViewModel. SwiftUI gestiona su ciclo de vida. @ObservedObject lo usas cuando el ViewModel viene de fuera (lo pasa el padre). Si la Vista con @ObservedObject se recrea, puede recibir un objeto nuevo o el mismo según el padre.'
+        },
+        {
+          question: '¿Qué hace @Published en una propiedad de ObservableObject?',
+          options: [
+            'Hace la propiedad accesible desde cualquier archivo del proyecto',
+            'Notifica automáticamente a las vistas observadoras cuando la propiedad cambia',
+            'Publica la propiedad en la App Store',
+            'Convierte la propiedad en una constante'
+          ],
+          correct: 1,
+          explanation: '@Published envuelve la propiedad para que, cada vez que se modifica, emita una notificación a través del ObservableObject. SwiftUI escucha estas notificaciones y reconstruye las vistas que observan ese objeto. Sin @Published, los cambios no se reflejarían en la UI.'
+        },
+        {
+          question: '¿Qué sucede si una Vista con @ObservedObject se recrea?',
+          options: [
+            'El objeto observado también se recrea automáticamente',
+            'La Vista recibe el mismo objeto o uno nuevo dependiendo de lo que el padre pase',
+            'La aplicación crashea',
+            'El @ObservedObject se convierte automáticamente en @StateObject'
+          ],
+          correct: 1,
+          explanation: 'A diferencia de @StateObject (que SwiftUI conserva en el heap), @ObservedObject no gestiona el ciclo de vida del objeto. Si la Vista se recrea, el padre debe pasar el objeto nuevamente. Por eso @StateObject se usa en el creador y @ObservedObject en los hijos.'
+        }
+      ]
+    }
   },
 
   {
@@ -856,7 +1248,44 @@ ContentView()
     .environmentObject(session)
     .environmentObject(AppSettings())`
       }
-    ]
+    ],
+    quiz: {
+      questions: [
+        {
+          question: '¿Cómo se inyecta un @EnvironmentObject en la jerarquía de vistas?',
+          options: [
+            'Pasándolo como parámetro en el inicializador de cada vista',
+            'Usando el modifier .environmentObject() en una vista padre para que todos los descendientes puedan accederlo',
+            'Declarándolo en el archivo AppDelegate',
+            'Usando el modifier .inject() en la vista raíz'
+          ],
+          correct: 1,
+          explanation: '.environmentObject() inyecta el objeto en el entorno (environment) de la vista actual. Todas las vistas descendientes pueden accederlo con @EnvironmentObject sin necesidad de que las vistas intermedias lo conozcan o lo pasen explícitamente.'
+        },
+        {
+          question: '¿Cuándo es @EnvironmentObject la mejor opción frente a pasar datos por inicializadores?',
+          options: [
+            'Cuando varias vistas en distintas ramas del árbol necesitan el mismo objeto y pasarlo por cada nivel intermedio sería prop drilling excesivo',
+            'Solo cuando hay una única vista que necesita el dato',
+            'Siempre, es mejor que cualquier otra opción',
+            'Nunca, pasar por inicializadores es siempre preferible'
+          ],
+          correct: 0,
+          explanation: '@EnvironmentObject evita el prop drilling: pasar un objeto a través de múltiples niveles de vistas que no lo necesitan solo para que llegue a un descendiente lejano. Es ideal para sesión de usuario, tema de la app o carrito de compras.'
+        },
+        {
+          question: '¿Cuándo NO es recomendable usar @EnvironmentObject?',
+          options: [
+            'Para estado global como la sesión del usuario o el tema de la app',
+            'Para estado local de una sola pantalla (como qué tab está seleccionado)',
+            'Para carrito de compras accesible desde varias pantallas',
+            'Para configuración de la app'
+          ],
+          correct: 1,
+          explanation: '@EnvironmentObject está diseñado para estado compartido globalmente. Usarlo para estado local de una pantalla añade acoplamiento innecesario. Para estado local se usa @State, y para comunicación directa padre-hijo se usa @Binding u @ObservedObject.'
+        }
+      ]
+    }
   },
 
   {
@@ -941,7 +1370,55 @@ struct HomeView: View {
     }
 }`
       }
-    ]
+    ],
+    quiz: {
+      questions: [
+        {
+          question: '¿Cuál es el contenedor de navegación moderno en SwiftUI (iOS 16+)?',
+          options: [
+            'NavigationView',
+            'NavigationStack',
+            'UINavigationController',
+            'NavigatorView'
+          ],
+          correct: 1,
+          explanation: 'NavigationStack (iOS 16+) reemplaza a NavigationView. Proporciona navegación programática completa con NavigationPath, deep links tipados con navigationDestination(for:), y mejor gestión del stack de navegación.'
+        },
+        {
+          question: '¿Cómo se declara la vista a mostrar cuando se navega con un valor de un tipo específico?',
+          options: [
+            'Con NavigationLink(destination:) directamente en el link',
+            'Con el modifier navigationDestination(for:destination:) en el NavigationStack',
+            'Con onNavigate(for:) en la vista raíz',
+            'Con NavigationPath(route:)'
+          ],
+          correct: 1,
+          explanation: 'navigationDestination(for: Tipo.self) { valor in ... } declara qué vista mostrar para un tipo de dato. Se combina con NavigationLink(value:) que pasa el valor. Esto desacopla el link de la vista destino, facilitando deep links y navegación programática.'
+        },
+        {
+          question: '¿Para qué sirve NavigationPath en SwiftUI?',
+          options: [
+            'Para definir la animación de transición entre pantallas',
+            'Para manejar el stack de navegación de forma programática: añadir, eliminar o limpiar rutas',
+            'Para importar lógica de navegación desde UIKit',
+            'Para crear enlaces profundos solo desde notificaciones push'
+          ],
+          correct: 1,
+          explanation: 'NavigationPath representa el stack de navegación como un valor. Se puede modificar programáticamente: path.append(user) para navegar, path.removeLast() para volver atrás, o path = NavigationPath() para volver al root. Es clave para deep links y navegación condicional.'
+        },
+        {
+          question: '¿Qué modifier se usa para añadir botones en la barra de navegación?',
+          options: [
+            '.navigationBarItems()',
+            '.toolbar()',
+            '.navButtons()',
+            '.barButtons()'
+          ],
+          correct: 1,
+          explanation: 'El modifier .toolbar() permite agregar ToolbarItems en diferentes posiciones: .navigationBarTrailing (derecha), .navigationBarLeading (izquierda), .bottomBar, etc. Reemplaza a .navigationBarItems() que está obsoleto desde iOS 16.'
+        }
+      ]
+    }
   },
 
   {
@@ -1029,7 +1506,55 @@ struct OnboardingView: View {
     }
 }`
       }
-    ]
+    ],
+    quiz: {
+      questions: [
+        {
+          question: '¿Cuál es la estructura recomendada para NavigationStack dentro de TabView?',
+          options: [
+            'Un solo NavigationStack que envuelve todo el TabView',
+            'Cada tab debe tener su propio NavigationStack independiente',
+            'NavigationStack no es compatible con TabView',
+            'Solo la primera tab necesita NavigationStack'
+          ],
+          correct: 1,
+          explanation: 'Cada tab debe tener su propio NavigationStack para mantener historiales de navegación independientes. Así, al cambiar de tab y volver, cada una conserva su estado de navegación sin interferencias.'
+        },
+        {
+          question: '¿Cómo se controla programáticamente qué tab está activa en TabView?',
+          options: [
+            'Con @State y TabView(selection: $selectedTab) combinado con .tag() en cada tab',
+            'Llamando al método switchToTab() del TabView',
+            'Usando una variable de entorno selectedTab',
+            'No es posible cambiar de tab programáticamente'
+          ],
+          correct: 0,
+          explanation: 'TabView(selection: $selectedTab) vincula una variable @State a la tab activa. Cada tab se marca con .tag(valor). Cambiar selectedTab desde cualquier vista cambia la tab activa. Es útil para navegar a una tab específica desde otra tab o desde una notificación.'
+        },
+        {
+          question: '¿Cómo se añade un badge de notificación a un tab en TabView?',
+          options: [
+            'Con el modifier .badge() en el contenido del tab',
+            'Con .notificationBadge() en el tabItem',
+            'Los badges no están soportados en SwiftUI TabView',
+            'Con badge(count:) en el propio TabView'
+          ],
+          correct: 0,
+          explanation: 'El modifier .badge(número) se aplica al contenido del tab y muestra el badge en el tabItem. Por ejemplo: NavigationStack { List {...} }.badge(3) muestra un badge rojo con "3" en la barra de tabs. Es útil para notificaciones no leídas.'
+        },
+        {
+          question: '¿Qué modifier convierte TabView en un carrusel tipo pager para onboarding?',
+          options: [
+            '.tabViewStyle(.carousel)',
+            '.tabViewStyle(.page)',
+            '.pagerStyle()',
+            '.tabViewStyle(.scroll)'
+          ],
+          correct: 1,
+          explanation: '.tabViewStyle(.page) convierte el TabView en un carrusel de páginas deslizables, ocultando la barra de tabs. Se combina con .indexViewStyle(.page(backgroundDisplayMode: .always)) para mostrar los indicadores de página. Es ideal para pantallas de onboarding.'
+        }
+      ]
+    }
   },
 
   {
@@ -1099,7 +1624,55 @@ struct UserListView: View {
     }
 }`
       }
-    ]
+    ],
+    quiz: {
+      questions: [
+        {
+          question: '¿Qué protocolo deben conformar los elementos para usarse con List y ForEach?',
+          options: [
+            'Codable',
+            'Identifiable (tener una propiedad id única)',
+            'Hashable',
+            'Equatable'
+          ],
+          correct: 1,
+          explanation: 'Los elementos deben ser Identifiable, es decir, tener una propiedad id única. SwiftUI usa el id para identificar cada elemento, animar cambios eficientemente y actualizar solo lo necesario. Alternativamente se puede usar id: \\.keyPath en ForEach para elementos sin Identifiable.'
+        },
+        {
+          question: '¿Qué modifier añade acciones al deslizar una fila de List?',
+          options: [
+            '.onSwipe()',
+            '.swipeActions(edge:)',
+            '.contextMenu()',
+            '.gesture(DragGesture())'
+          ],
+          correct: 1,
+          explanation: '.swipeActions(edge:) añade botones que aparecen al deslizar la fila. .swipeActions(edge: .trailing) para acciones al deslizar a la izquierda (como eliminar), y .swipeActions(edge: .leading) para acciones al deslizar a la derecha (como marcar favorito con .tint()).'
+        },
+        {
+          question: '¿Qué se necesita para habilitar el modo edición con reordenación en una List?',
+          options: [
+            'El modifier .onMove en el ForEach y un EditButton en el toolbar',
+            'Los modifiers .dragEnabled() y .reorderable()',
+            'El modo edición es automático para todas las List',
+            'Los modifiers .editMode() y .onReorder()'
+          ],
+          correct: 0,
+          explanation: 'Para reordenar elementos: añadir .onMove { source, destination en ... } al ForEach, y un EditButton() en el toolbar que activa/desactiva el modo edición. El usuario puede arrastrar los elementos para reordenarlos mientras el modo edición está activo.'
+        },
+        {
+          question: '¿Qué estilos de lista están disponibles en SwiftUI?',
+          options: [
+            '.plain, .grouped, .insetGrouped, .sidebar',
+            'Solo .plain',
+            '.rounded y .square',
+            'Solo .insetGrouped'
+          ],
+          correct: 0,
+          explanation: 'SwiftUI ofrece varios estilos de lista: .plain (estilo básico sin decoración), .grouped (agrupado con fondo de sección), .insetGrouped (agrupado con bordes redondeados, el más común en iOS moderno) y .sidebar (para navegación lateral en iPad/macOS).'
+        }
+      ]
+    }
   },
 
   {
@@ -1188,7 +1761,55 @@ struct SheetContent: View {
     }
 }`
       }
-    ]
+    ],
+    quiz: {
+      questions: [
+        {
+          question: '¿Cuál es la diferencia entre .sheet() y .fullScreenCover() en SwiftUI?',
+          options: [
+            '.sheet() presenta un modal deslizable con altura configurable; .fullScreenCover() cubre toda la pantalla',
+            'No hay diferencia, son sinónimos',
+            '.sheet() solo funciona en iPad y .fullScreenCover() en iPhone',
+            '.sheet() está obsoleto desde iOS 16'
+          ],
+          correct: 0,
+          explanation: '.sheet() muestra un modal que se desliza desde abajo y puede tener altura configurable con .presentationDetents() (iOS 16+). .fullScreenCover() cubre toda la pantalla sin dejar ver la vista anterior. Ambos se controlan con bindings booleanos o items opcionales.'
+        },
+        {
+          question: '¿Cuál es la ventaja de usar presentación item-based (.sheet(item:)) sobre bool-based (.sheet(isPresented:))?',
+          options: [
+            'El dato y la presentación están vinculados: al asignar un item se presenta el modal, al descartarlo se limpia automáticamente. Es más seguro porque evita estados inconsistentes',
+            'El item-based es más rápido en rendimiento',
+            'El bool-based no funciona en iOS 16+',
+            'No hay ventaja, ambos son equivalentes'
+          ],
+          correct: 0,
+          explanation: 'Con .sheet(item: $selectedItem), la presentación está atada al dato opcional. Cuando selectedItem es non-nil, el sheet se muestra. Al descartarlo, SwiftUI limpia el item automáticamente. Esto evita estados donde el sheet está visible pero los datos no están sincronizados.'
+        },
+        {
+          question: '¿Cómo se descarta un sheet desde dentro de su propio contenido?',
+          options: [
+            'Usando @Environment(\\.dismiss) para obtener la función dismiss() y llamarla',
+            'Con self.dismiss() directamente',
+            'Haciendo pop del NavigationStack',
+            'Asignando false al binding de presentación manualmente'
+          ],
+          correct: 0,
+          explanation: '@Environment(\\.dismiss) proporciona la función dismiss() que cierra la presentación actual (sheet, fullScreenCover, popover). Es la forma correcta y declarativa de cerrar un modal desde dentro. Antes de iOS 15 se usaban bindings o closures de callback.'
+        },
+        {
+          question: '¿Qué modifier se usa para mostrar un action sheet en SwiftUI?',
+          options: [
+            '.actionSheet()',
+            '.confirmationDialog()',
+            '.menu()',
+            '.popover()'
+          ],
+          correct: 1,
+          explanation: '.confirmationDialog() es el reemplazo moderno de .actionSheet() (obsoleto). Muestra un menú de opciones al usuario con botones de distintos roles (destructive, cancel). En iPhone se muestra como action sheet desde abajo, en iPad como popover.'
+        }
+      ]
+    }
   },
 
   {
@@ -1287,6 +1908,54 @@ struct ArticleView: View {
     }
 }`
       }
-    ]
+    ],
+    quiz: {
+      questions: [
+        {
+          question: '¿Qué marca el punto de entrada de una app SwiftUI?',
+          options: [
+            'El atributo @main en una struct que conforma el protocolo App',
+            'La clase AppDelegate',
+            'La clase SceneDelegate',
+            'El atributo @UIApplicationMain'
+          ],
+          correct: 0,
+          explanation: 'En SwiftUI, el punto de entrada es una struct marcada con @main que conforma el protocolo App. Esta struct reemplaza a AppDelegate y SceneDelegate de UIKit. Solo puede haber un @main en la app. Su body retorna una Scene, normalmente WindowGroup.'
+        },
+        {
+          question: '¿Qué representa ScenePhase en SwiftUI?',
+          options: [
+            'El estado del ciclo de vida de la escena: .active, .inactive, .background',
+            'La fase de compilación del proyecto Swift',
+            'El estado de la animación actual de una vista',
+            'La fase de renderizado de un frame'
+          ],
+          correct: 0,
+          explanation: 'ScenePhase indica el ciclo de vida de la escena: .active (app visible y recibiendo eventos, similar a onResume en Android), .inactive (app visible pero sin recibir eventos, como al abrir el centro de control), .background (app minimizada, similar a onStop).'
+        },
+        {
+          question: '¿Cuál es la diferencia entre @AppStorage y @SceneStorage?',
+          options: [
+            '@AppStorage persiste en UserDefaults (global para toda la app); @SceneStorage persiste por escena y se restaura automáticamente si el sistema relanza la app',
+            'No hay diferencia, ambos persisten en el disco',
+            '@AppStorage es para strings y @SceneStorage para números enteros',
+            '@SceneStorage está obsoleto desde iOS 16'
+          ],
+          correct: 0,
+          explanation: '@AppStorage es un wrapper sobre UserDefaults: persiste valores entre lanzamientos de la app de forma global. @SceneStorage persiste valores asociados a una escena específica y los restaura automáticamente si el sistema mata y relanza la app. SceneStorage es ideal para restaurar la posición de scroll.'
+        },
+        {
+          question: '¿Qué Scene se usa más comúnmente en apps SwiftUI y qué representa?',
+          options: [
+            'DocumentGroup — para gestionar documentos',
+            'WindowGroup — gestiona una o múltiples ventanas de la app, cada una con su propio estado y ciclo de vida',
+            'Settings — para la pantalla de configuración del sistema',
+            'MenuBarExtra — para apps en la barra de menú de macOS'
+          ],
+          correct: 1,
+          explanation: 'WindowGroup es la Scene más común en SwiftUI. Representa una ventana que puede tener múltiples instancias en iPad y macOS. Cada instancia tiene su propio estado y ciclo de vida. SwiftUI gestiona la creación y destrucción de las ventanas automáticamente.'
+        }
+      ]
+    }
   }
 ]

@@ -175,7 +175,58 @@ var androidBasics = [
         type: 'warning',
         body: '<strong>Trampa frecuente:</strong> Usar <code>this</code> como LifecycleOwner en <code>observe()</code> dentro de un Fragment puede causar que el observer siga activo después de que la View se destruya. Usa siempre <code>viewLifecycleOwner</code>.'
       }
-    ]
+    ],
+    quiz: {
+      questions: [
+        {
+          question: '¿En qué método del ciclo de vida de un Fragment debes observar LiveData o recoger Flows?',
+          options: [
+            'onCreateView() — justo al inflar el layout',
+            'onViewCreated() — cuando la jerarquía de vistas ya existe y viewLifecycleOwner está disponible',
+            'onStart() — cuando el Fragment se vuelve visible',
+            'onResume() — cuando el Fragment está en primer plano'
+          ],
+          correct: 1,
+          explanation: 'onViewCreated() es el punto correcto porque la View ya está creada y viewLifecycleOwner está disponible. Observar en onCreateView() es arriesgado porque viewLifecycleOwner aún no está completamente inicializado. Observar en onStart()/onResume() causaría re-suscripciones innecesarias.'
+        },
+        {
+          question: '¿Qué LifecycleOwner debes usar al observar LiveData en un Fragment y por qué?',
+          code: `viewModel.data.observe(???) { result ->
+    updateUI(result)
+}`,
+          options: [
+            'this — el Fragment es el LifecycleOwner natural',
+            'viewLifecycleOwner — para que el observer se elimine automáticamente cuando la View se destruya, evitando leaks',
+            'activityLifecycleOwner — para compartir la observación con la Activity',
+            'No se necesita LifecycleOwner en Fragments modernos'
+          ],
+          correct: 1,
+          explanation: 'viewLifecycleOwner se destruye en onDestroyView(), eliminando los observers automáticamente. Si usas "this" (el Fragment), el observer sigue activo incluso después de que la View se destruya (el Fragment puede seguir vivo sin View), causando actualizaciones en Views inexistentes y posibles crashes.'
+        },
+        {
+          question: '¿Qué diferencia hay entre onCreateView() y onViewCreated() en un Fragment?',
+          options: [
+            'onCreateView() inicializa el ViewModel; onViewCreated() infla el layout',
+            'onCreateView() infla y retorna la View raíz; onViewCreated() configura las vistas ya infladas (bindings, listeners, observadores)',
+            'Son intercambiables — puedes usar cualquiera para inicializar vistas',
+            'onCreateView() se llama una vez; onViewCreated() se llama cada vez que el Fragment vuelve a primer plano'
+          ],
+          correct: 1,
+          explanation: 'onCreateView() tiene una responsabilidad: inflar el layout y retornar la View raíz. onViewCreated() se ejecuta después, cuando la View ya está creada, y es donde debes configurar todo: binding de vistas, click listeners, observación de LiveData/Flow. Separar estas responsabilidades evita errores.'
+        },
+        {
+          question: '¿Por qué se recomienda usar un ViewModel compartido (activityViewModels()) para la comunicación entre Fragments en lugar de interfaces?',
+          options: [
+            'Las interfaces no funcionan entre Fragments en Android',
+            'Un ViewModel compartido sobrevive a cambios de configuración, no crea dependencias directas entre Fragments y mantiene el estado de forma centralizada',
+            'activityViewModels() es más rápido que las interfaces en términos de rendimiento',
+            'Las interfaces requieren permisos especiales en el Manifest'
+          ],
+          correct: 1,
+          explanation: 'Con activityViewModels(), ambos Fragments acceden al mismo ViewModel en el ViewModelStore de la Activity. Esto permite compartir datos sin acoplamiento directo (los Fragments no se conocen), el estado sobrevive a rotaciones, y la lógica de comunicación está centralizada. Las interfaces crean dependencias directas y no manejan recreaciones de Activity.'
+        }
+      ]
+    }
   },
 
   {
@@ -231,9 +282,69 @@ object GoodSingleton {
     fun init(appContext: Context) {
         context = appContext.applicationContext
     }
-}`
+}"`
       }
-    ]
+    ],
+    quiz: {
+      questions: [
+        {
+          question: '¿Qué tipo de Context debes usar en un Singleton que necesita acceder a SharedPreferences?',
+          code: `object UserPreferences {
+    lateinit var context: Context
+    fun init(ctx: Context) {
+        context = ctx.???
+    }
+}`,
+          options: [
+            'El Activity Context directamente — tiene acceso a todos los recursos',
+            'applicationContext — vive mientras la app y no causa memory leaks al retenerse en un Singleton',
+            'baseContext — es el Context más ligero disponible',
+            'No se necesita Context para SharedPreferences — se accede directamente'
+          ],
+          correct: 1,
+          explanation: 'En un Singleton, guardas una referencia que vive para siempre. Si guardas un Activity Context, la Activity nunca será garbage-collected → memory leak. applicationContext vive mientras la app y no está vinculado a ninguna Activity, por lo que es seguro retenerlo en Singletons.'
+        },
+        {
+          question: '¿Por qué guardar un Activity Context en un Singleton causa un memory leak?',
+          options: [
+            'Porque el Singleton consume demasiada memoria al tener el Context',
+            'Porque el Activity Context mantiene una referencia a la Activity completa — si el Singleton lo retiene, la Activity no puede ser garbage-collected aunque ya no sea visible',
+            'Porque Android no permite guardar Contexts en objetos estáticos — lanza una excepción',
+            'Solo causa leak si la Activity está en segundo plano, no si está destruida'
+          ],
+          correct: 1,
+          explanation: 'Activity Context tiene una referencia fuerte a la Activity (views, resources, window). Si un Singleton (que vive para siempre) retiene ese Context, la Activity entera permanece en memoria aunque el usuario haya salido de ella. Esto acumula memoria usada innecesariamente hasta causar OOM. applicationContext no tiene referencia a la Activity, por eso es seguro.'
+        },
+        {
+          question: '¿Para cuál de estas operaciones necesitas obligatoriamente un Activity Context y no sirve un Application Context?',
+          options: [
+            'Acceder a SharedPreferences',
+            'Mostrar un Dialog con tema de la Activity',
+            'Leer un archivo de la carpeta internal storage',
+            'Iniciar un WorkManager task'
+          ],
+          correct: 1,
+          explanation: 'Los Dialogs necesitan un Activity Context porque se decoran con el tema de la Activity actual y se adjuntan a su window. Con Application Context, el Dialog se mostraría sin tema o lanzaría una excepción. SharedPreferences, storage y WorkManager funcionan perfectamente con Application Context.'
+        },
+        {
+          question: '¿Qué hace la anotación @ApplicationContext de Hilt al inyectar un Context?',
+          code: `@Singleton
+class TokenManager @Inject constructor(
+    @ApplicationContext private val context: Context
+) {
+    fun getToken() = context.getSharedPreferences("auth", Context.MODE_PRIVATE)
+}`,
+          options: [
+            'Inyecta automáticamente el Context de la Activity actual',
+            'Crea un nuevo Context cada vez que se inyecta',
+            'Garantiza que se inyecte el Application Context (no el de ninguna Activity), evitando leaks en objetos @Singleton',
+            'Requiere que la clase implemente ApplicationContextAware'
+          ],
+          correct: 2,
+          explanation: '@ApplicationContext indica a Hilt que debe inyectar el Context de la Aplicación, no el de la Activity. Esto es esencial en objetos @Singleton: si Hilt inyectara un Activity Context, el Singleton retendría la Activity para siempre. Con @ApplicationContext, el contexto vive mientras la app y el leak es imposible.'
+        }
+      ]
+    }
   },
 
   {
@@ -309,7 +420,68 @@ requestPermission.launch(Manifest.permission.CAMERA)`
     </intent-filter>
 </activity>`
       }
-    ]
+    ],
+    quiz: {
+      questions: [
+        {
+          question: '¿Cuál es la diferencia fundamental entre un Explicit Intent y un Implicit Intent?',
+          options: [
+            'Explicit Intent requiere permisos en el Manifest; Implicit Intent no',
+            'Explicit Intent especifica el componente destino exacto (clase); Implicit Intent describe una acción y el sistema busca quién puede manejarla',
+            'Implicit Intent es más rápido porque no necesita resolver el componente',
+            'No hay diferencia — ambos se resuelven de la misma forma'
+          ],
+          correct: 1,
+          explanation: 'Explicit Intent: indicas exactamente qué Activity/Service lanzar (ej: Intent(this, DetailActivity::class.java)). Se usa para navegación interna. Implicit Intent: describes una acción (ACTION_VIEW, ACTION_SEND) y Android busca apps que la manejen. Se usa para abrir URLs, compartir contenido, etc.'
+        },
+        {
+          question: '¿Por qué startActivityForResult() está obsoleto y qué lo reemplaza?',
+          code: `// Obsoleto ❌
+startActivityForResult(intent, REQUEST_CODE)
+
+// Moderno ✅
+private val launcher = registerForActivityResult(
+    ActivityResultContracts.StartActivityForResult()
+) { result -> ... }`,
+          options: [
+            'Porque no funciona con Fragments — registerForActivityResult() funciona en Activity y Fragment',
+            'Porque registerForActivityResult() (Activity Result API) gestiona el ciclo de vida automáticamente, evita conflictos de REQUEST_CODE y es type-safe con contratos predefinidos',
+            'Porque startActivityForResult() causaba memory leaks siempre',
+            'Porque Google descontinuó todas las APIs basadas en Intents'
+          ],
+          correct: 1,
+          explanation: 'startActivityForResult() tenía problemas: (1) el REQUEST_CODE era un int suelto propenso a conflictos, (2) no respetaba el ciclo de vida — el callback podía ejecutarse tras destruir el Fragment/Activity, (3) el resultado se procesaba en onActivityResult() centralizado. registerForActivityResult() registra el launcher antes de lanzar, respeta el lifecycle y ofrece contratos type-safe (GetContent, RequestPermission, etc.).'
+        },
+        {
+          question: '¿Para qué sirve Intent.createChooser() al enviar un Implicit Intent?',
+          options: [
+            'Para crear una copia del Intent original y modificarla sin afectar el primero',
+            'Para forzar que el Intent siempre se abra en Chrome',
+            'Para mostrar un diálogo al usuario donde elija qué app quiere usar para manejar la acción, evitando que una app se establezca como predeterminada silenciosamente',
+            'Para crear un Intent implícito a partir de uno explícito'
+          ],
+          correct: 2,
+          explanation: 'Sin createChooser(), si el usuario selecciona "Siempre" en el diálogo de elección, las siguientes veces el Intent se enviará automáticamente a esa app sin preguntar. createChooser() siempre muestra el diálogo de selección, garantizando que el usuario elija cada vez. Es especialmente importante con intents de compartir (ACTION_SEND).'
+        },
+        {
+          question: '¿Qué elementos definen un deep link en un Intent Filter del Manifest?',
+          code: `<intent-filter>
+    <action android:name="android.intent.action.VIEW" />
+    <category android:name="android.intent.category.DEFAULT" />
+    <category android:name="android.intent.category.BROWSABLE" />
+    <data android:scheme="myapp" android:host="detail" />
+</intent-filter>`,
+          options: [
+            'Solo requiere la acción ACTION_VIEW',
+            'Acción VIEW + categoría BROWSABLE (para que funcione desde un navegador) + data con scheme y host',
+            'Cualquier Intent Filter puede recibir deep links automáticamente',
+            'Solo necesita el elemento <data> con el scheme'
+          ],
+          correct: 1,
+          explanation: 'Para que un deep link funcione: ACTION_VIEW (indica que se quiere "ver" algo), categoría BROWSABLE (permite que un navegador web lance el intent), y <data> define el URI (scheme://host/path). Si falta BROWSABLE, un enlace web no podrá abrir tu app. URI: myapp://detail/42 coincidiría con este filter.'
+        }
+      ]
+    }
   },
 
   {
@@ -389,7 +561,65 @@ class CameraFragment : Fragment() {
     }
 }`
       }
-    ]
+    ],
+    quiz: {
+      questions: [
+        {
+          question: '¿Cuál es la diferencia entre un permiso normal y un permiso peligroso en Android?',
+          options: [
+            'Los permisos normales solo funcionan en la versión de release; los peligrosos también en debug',
+            'Los permisos normales se conceden automáticamente al instalar la app; los peligrosos afectan la privacidad del usuario y deben solicitarse en runtime',
+            'No hay diferencia — todos los permisos se solicitan igual',
+            'Los permisos peligrosos requieren una cuenta de desarrollador de Google; los normales no'
+          ],
+          correct: 1,
+          explanation: 'Permisos normales (INTERNET, VIBRATE, SET_WALLPAPER): no afectan la privacidad, se conceden automáticamente al instalar. Permisos peligrosos (CAMERA, LOCATION, READ_CONTACTS): acceden a datos sensibles del usuario, deben declararse en el Manifest Y solicitarse en runtime desde Android 6.0 (API 23).'
+        },
+        {
+          question: '¿Qué significa android:exported="true" en un componente del Manifest y cuándo es obligatorio?',
+          options: [
+            'Que el componente se puede ejecutar en otro proceso — obligatorio en Services',
+            'Que el componente puede ser lanzado por otras apps o por el sistema — obligatorio en API 31+ para componentes con intent-filter',
+            'Que el componente se exporta como una librería AAR — obligatorio en todos los módulos',
+            'Que el componente se puede eliminar por el sistema cuando hay poca memoria'
+          ],
+          correct: 1,
+          explanation: 'android:exported="true" indica que otras apps (o el sistema) pueden iniciar este componente. En API 31+ (Android 12), es obligatorio especificarlo explícitamente para componentes con intent-filter para evitar que se expongan accidentalmente. La Activity launcher siempre lleva exported="true" porque el sistema la inicia.'
+        },
+        {
+          question: '¿Cuándo se debe llamar a shouldShowRequestPermissionRationale()?',
+          code: `private val requestPermission = registerForActivityResult(
+    ActivityResultContracts.RequestPermission()
+) { isGranted ->
+    when {
+        isGranted -> openCamera()
+        shouldShowRequestPermissionRationale(Manifest.permission.CAMERA) ->
+            showRationale()
+        else -> showSettingsPrompt()
+    }
+}`,
+          options: [
+            'Siempre, antes de pedir cualquier permiso',
+            'Cuando el usuario negó el permiso pero NO marcó "No volver a preguntar" — para mostrar una explicación antes de volver a solicitarlo',
+            'Solo cuando el permiso fue concedido — para confirmar la decisión del usuario',
+            'Solo la primera vez que se solicita un permiso'
+          ],
+          correct: 1,
+          explanation: 'shouldShowRequestPermissionRationale() retorna true cuando el usuario negó el permiso pero aún no marcó "No volver a preguntar". Esto te permite mostrar un diálogo explicando por qué necesitas el permiso antes de volver a pedirlo. Si retorna false tras una denegación, el usuario marcó "No volver a preguntar" y debes enviarlo a Settings.'
+        },
+        {
+          question: '¿Qué elementos debe contener un Intent Filter para que una Activity sea el launcher de la app?',
+          options: [
+            'Solo <action android:name="android.intent.action.MAIN" />',
+            '<action android:name="android.intent.action.MAIN" /> + <category android:name="android.intent.category.LAUNCHER" />',
+            '<action android:name="android.intent.action.LAUNCHER" /> + <category android:name="android.intent.category.DEFAULT" />',
+            'Basta con declarar la Activity como primera en el Manifest'
+          ],
+          correct: 1,
+          explanation: 'Para que una Activity sea el punto de entrada de la app (la que se lanza al tocar el icono), necesita ambos: ACTION.MAIN (indica que es el entry point) y CATEGORY.LAUNCHER (indica que debe aparecer en el launcher del sistema). Sin LAUNCHER, la Activity no tendría icono en el home del dispositivo.'
+        }
+      ]
+    }
   },
 
   {
@@ -591,7 +821,82 @@ viewModel.products.observe(viewLifecycleOwner) { products ->
         type: 'tip',
         body: '<strong>Migración a StateFlow:</strong> <code>LiveData</code> puede convertirse a <code>Flow</code> con <code>.asFlow()</code>, y un <code>Flow</code> a <code>LiveData</code> con <code>.asLiveData()</code>. Úsalo para migrar gradualmente.'
       }
-    ]
+    ],
+    quiz: {
+      questions: [
+        {
+          question: '¿Cuál es la diferencia entre value y postValue en MutableLiveData?',
+          code: `private val _data = MutableLiveData<String>()
+
+fun updateFromMainThread(text: String) {
+    _data.value = text
+}
+
+fun updateFromIOThread(text: String) {
+    _data.postValue = text // ¿Qué pasa aquí?
+}`,
+          options: [
+            'value y postValue son idénticos — ambos actualizan el valor inmediatamente',
+            'value establece el valor sincrónicamente (solo en main thread); postValue lo programa para el main thread y se ejecuta cuando el looper principal esté listo — seguro desde hilos IO',
+            'postValue es más rápido que value porque no espera al main thread',
+            'value funciona desde cualquier hilo; postValue solo funciona desde el main thread'
+          ],
+          correct: 1,
+          explanation: 'value: asigna el valor y notifica a los observers inmediatamente — solo desde el main thread. Si lo llamas desde un hilo IO, lanza una excepción. postValue: programa la actualización en el main thread usando un Handler.post(). Es seguro desde cualquier hilo, pero la notificación a observers se retrasa hasta el siguiente ciclo del main looper.'
+        },
+        {
+          question: '¿Por qué se expone LiveData (inmutable) desde el ViewModel en lugar de MutableLiveData?',
+          code: `class MyViewModel : ViewModel() {
+    private val _users = MutableLiveData<List<User>>()
+    val users: LiveData<List<User>> = _users
+}`,
+          options: [
+            'Porque LiveData consume menos memoria que MutableLiveData',
+            'Porque MutableLiveData no puede ser observado por la UI',
+            'Para encapsular la mutabilidad — solo el ViewModel puede modificar el valor (_users), la UI solo observa (users) sin poder alterarlo',
+            'Porque LiveData soporta transformation operators y MutableLiveData no'
+          ],
+          correct: 2,
+          explanation: 'Este patrón de backing property (_users privado mutable, users público inmutable) garantiza que solo el ViewModel pueda modificar el dato desde dentro. La UI solo puede llamar a observe() en users, nunca a setValue() o postValue(). Esto previene que la vista modifique el estado directamente, respetando la unidireccionalidad del flujo de datos en MVVM.'
+        },
+        {
+          question: '¿Qué hace MediatorLiveData y en qué caso lo usarías?',
+          options: [
+            'MediatorLiveData es un LiveData que se actualiza automáticamente con Room',
+            'MediatorLiveData permite observar múltiples fuentes de LiveData y reaccionar cuando cualquiera de ellas cambia, combinando sus resultados',
+            'MediatorLiveData filtra los valores de un LiveData según una condición',
+            'MediatorLiveData es un LiveData que puede mutar el valor de otro LiveData'
+          ],
+          correct: 1,
+          explanation: 'MediatorLiveData observa uno o más LiveData sources con addSource(). Cuando cualquiera de las fuentes emite un valor, puedes combinar todos los valores y generar uno nuevo. Es útil cuando necesitas datos de múltiples fuentes (ej: lista de productos + filtro seleccionado) para producir un resultado combinado.'
+        },
+        {
+          question: '¿Qué hace la función Transformations.map() en LiveData?',
+          code: `val userNames: LiveData<List<String>> = users.map { users ->
+    users.map { it.name }
+}`,
+          options: [
+            'Ejecuta la transformación en un hilo IO para no bloquear el main thread',
+            'Crea un nuevo LiveData que transforma cada valor emitido por el LiveData original aplicando la función lambda — se actualiza automáticamente cuando la fuente cambia',
+            'Itera sobre todos los valores históricos del LiveData y los transforma',
+            'Convierte un LiveData en un Flow aplicando la función de transformación'
+          ],
+          correct: 1,
+          explanation: 'Transformations.map() toma un LiveData y una función lambda, y retorna un nuevo LiveData que aplica la transformación a cada valor emitido por la fuente. Es lifecycle-aware: si la fuente emite mientras ningún observer está activo, la transformación se pospone. Es útil para derivar datos (ej: formatear fechas, mapear entidades a modelos de UI).'
+        },
+        {
+          question: '¿Por qué es importante usar viewLifecycleOwner al observar LiveData en un Fragment y no this?',
+          options: [
+            'Porque this se refiere al Activity y no al Fragment',
+            'Porque viewLifecycleOwner garantiza que el observer se elimine cuando la View se destruye; con this el observer podría permanecer activo con una View destruida, causando crashes',
+            'Porque viewLifecycleOwner activa la actualización automática de la UI',
+            'No es importante — ambos LifecycleOwner funcionan igual en Fragments'
+          ],
+          correct: 1,
+          explanation: 'El lifecycle del Fragment (this) y el de su View (viewLifecycleOwner) son diferentes. La View se destruye en onDestroyView() pero el Fragment puede seguir vivo (ej: en la pila de back). Si observas con this, el observer sigue activo tras onDestroyView(), intentando actualizar Views inexistentes. viewLifecycleOwner se destruye con la View, eliminando observers a tiempo.'
+        }
+      ]
+    }
   },
 
   {
@@ -807,7 +1112,56 @@ viewModel.users.observe(viewLifecycleOwner) { users ->
     adapter.submitList(users)
 }`
       }
-    ]
+    ],
+    quiz: {
+      questions: [
+        {
+          question: '¿Qué ventaja ofrece ListAdapter sobre un RecyclerView.Adapter tradicional?',
+          code: `class UserAdapter : ListAdapter<User, UserAdapter.UserViewHolder>(UserDiffCallback())`,
+          options: [
+            'ListAdapter solo funciona con listas de un solo tipo de item',
+            'ListAdapter incorpora DiffUtil en background thread, actualizando solo los items que cambian con animaciones automáticas al llamar submitList()',
+            'ListAdapter es más rápido porque no usa ViewHolder',
+            'ListAdapter no requiere LayoutManager'
+          ],
+          correct: 1,
+          explanation: 'ListAdapter extiende RecyclerView.Adapter y utiliza DiffUtil en un hilo secundario para calcular las diferencias entre la lista anterior y la nueva. submitList() ejecuta la diff en background y solo los items que cambiaron se actualizan con animaciones, evitando llamar a notifyDataSetChanged() que refrescaría toda la lista innecesariamente.'
+        },
+        {
+          question: '¿Qué tipos de LayoutManager ofrece RecyclerView y para qué se usa cada uno?',
+          options: [
+            'Solo LinearLayoutManager — los demás son librerías externas que hay que añadir',
+            'LinearLayoutManager (lista vertical u horizontal), GridLayoutManager (cuadrícula regular), StaggeredGridLayoutManager (cuadrícula con items de diferente tamaño)',
+            'GridLayoutManager, TableLayoutManager y FlexLayoutManager',
+            'LinearLayoutManager, PagerLayoutManager y StaggeredGridLayoutManager'
+          ],
+          correct: 1,
+          explanation: 'LinearLayoutManager organiza los items en una lista lineal (scroll vertical u horizontal). GridLayoutManager los dispone en una cuadrícula de filas y columnas con el mismo tamaño. StaggeredGridLayoutManager es similar a GridLayout pero permite que los items tengan diferentes alturas o anchos (mosaico irregular tipo Pinterest).'
+        },
+        {
+          question: '¿Cuál es la función del ViewHolder en RecyclerView?',
+          options: [
+            'Almacenar los datos que se muestran en cada item de la lista',
+            'Mantener una referencia a las vistas del layout de cada item, evitando llamadas costosas a findViewById() y permitiendo reciclar vistas eficientemente',
+            'Gestionar el LayoutManager y la disposición de los items en pantalla',
+            'Crear nuevas vistas cuando no hay ViewHolders disponibles para reciclar'
+          ],
+          correct: 1,
+          explanation: 'El ViewHolder mantiene referencias a las vistas del layout del item (tvName, ivAvatar, etc.) mediante binding. onCreateViewHolder() crea el ViewHolder inflando el layout, y onBindViewHolder() lo reutiliza enlazando los datos del item actual. Reciclar ViewHolders (en lugar de crear Views nuevas) es la clave del rendimiento de RecyclerView.'
+        },
+        {
+          question: '¿Qué hace exactamente adapter.submitList(nuevaLista) en un ListAdapter?',
+          options: [
+            'Reemplaza toda la lista en el hilo principal, congelando la UI hasta terminar',
+            'Calcula las diferencias con DiffUtil en background y aplica solo los cambios necesarios (insertar, eliminar, actualizar items) con animaciones automáticas',
+            'Es equivalente a llamar notifyDataSetChanged() — refresca toda la lista',
+            'Lanza una excepción si la nueva lista tiene más de 100 elementos'
+          ],
+          correct: 1,
+          explanation: 'submitList() delega a AsyncListDiffer el cálculo de diferencias entre la lista anterior y la nueva en un hilo background usando el DiffUtil.Callback. Al terminar, aplica los cambios con notifyItemRangeInserted, notifyItemChanged, etc., activando las animaciones automáticas de RecyclerView. Solo los items modificados se actualizan, mejorando el rendimiento.'
+        }
+      ]
+    }
   },
 
   {
@@ -873,6 +1227,70 @@ findNavController().popBackStack()
 val navController = findNavController(R.id.nav_host_fragment)
 binding.bottomNav.setupWithNavController(navController)`
       }
-    ]
+    ],
+    quiz: {
+      questions: [
+        {
+          question: '¿Qué es Safe Args y qué problema resuelve?',
+          code: `val action = HomeFragmentDirections.actionHomeToDetail(userId = 42)
+findNavController().navigate(action)
+
+class DetailFragment : Fragment() {
+    private val args: DetailFragmentArgs by navArgs()
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        val userId = args.userId // Int, type-safe
+    }
+}`,
+          options: [
+            'Safe Args es una librería para animaciones entre Fragments',
+            'Safe Args es un plugin de Gradle que genera clases tipadas (Directions y Args) para la navegación, eliminando errores de tipo al pasar argumentos entre destinos en compile-time',
+            'Safe Args reemplaza el AndroidManifest para configurar la navegación',
+            'Safe Args solo funciona con Navigation Compose, no con Fragments'
+          ],
+          correct: 1,
+          explanation: 'Sin Safe Args, pasar argumentos requiere usar Bundle con keys String (putInt("userId", 42)), lo que es propenso a errores de tipeo y tipos incorrectos que solo se detectan en runtime. Safe Args genera las clases HomeFragmentDirections y DetailFragmentArgs con propiedades tipadas, garantizando en compile-time que los nombres, tipos y obligatoriedad de los argumentos sean correctos.'
+        },
+        {
+          question: '¿Qué rol cumple NavHostFragment en el Navigation Component?',
+          options: [
+            'Define el XML del NavGraph con todos los destinos y acciones de navegación',
+            'Es el contenedor que renderiza los destinos del NavGraph — reemplaza al FragmentManager para las transacciones entre Fragments',
+            'Gestiona los argumentos de navegación de forma type-safe con Safe Args',
+            'Configura el BottomNavigation automáticamente al vincularlo con NavController'
+          ],
+          correct: 1,
+          explanation: 'NavHostFragment es el fragmento especial que contiene y orquesta los destinos definidos en el NavGraph. Se declara en el layout XML y se asocia a un NavGraph. Cuando navegas, NavHostFragment reemplaza internamente su contenido con el Fragment destino, manejando el back stack automáticamente — sin necesidad de usar FragmentManager manualmente.'
+        },
+        {
+          question: '¿Qué diferencia hay entre navigateUp() y popBackStack() en NavController?',
+          code: `// Opción A
+findNavController().navigateUp()
+
+// Opción B
+findNavController().popBackStack()`,
+          options: [
+            'navigateUp() navega al destino padre según la jerarquía del NavGraph; popBackStack() simplemente elimina el destino actual de la pila — navigateUp() considera la jerarquía declarada, popBackStack() considera la pila de navegación',
+            'Son completamente equivalentes — ambos hacen lo mismo',
+            'navigateUp() solo funciona con BottomNavigation; popBackStack() funciona siempre',
+            'navigateUp() requiere Safe Args; popBackStack() no'
+          ],
+          correct: 0,
+          explanation: 'navigateUp() respeta la jerarquía definida en el NavGraph (relaciones parent entre destinos), ideal para el botón "Up" de la ActionBar. popBackStack() simplemente deshace la última transacción de navegación, ignorando la jerarquía del NavGraph. Usa navigateUp() para el comportamiento estándar de navegación Android y popBackStack() para lógica programática específica.'
+        },
+        {
+          question: '¿Cómo se configura un BottomNavigation para que funcione con el Navigation Component?',
+          code: `val navController = findNavController(R.id.nav_host_fragment)
+binding.bottomNav.setupWithNavController(navController)`,
+          options: [
+            'Se asigna un NavGraph diferente a cada item del BottomNavigation manualmente',
+            'Con setupWithNavController(), el BottomNavigation se sincroniza con el NavController: al seleccionar un item navega al destino y al navegar programáticamente se actualiza el item seleccionado',
+            'BottomNavigation no es compatible con Navigation Component — requiere una librería externa',
+            'setupWithNavController() solo funciona con menús XML, no con menús creados programáticamente'
+          ],
+          correct: 1,
+          explanation: 'setupWithNavController() vincula el BottomNavigation con el NavController automáticamente. Cuando el usuario presiona un item, se llama a navigate() con el id del destino. Cuando se navega programáticamente (por deep link, botón back, etc.), el BottomNavigation resalta el item correcto. Esto evita gestionar manualmente las selecciones y el back stack.'
+        }
+      ]
+    }
   }
 ]

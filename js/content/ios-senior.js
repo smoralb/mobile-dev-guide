@@ -92,7 +92,62 @@ struct SearchView: View {
         type: 'tip',
         body: '<strong>Eficiencia:</strong> Con <code>ObservableObject</code>, si cambia cualquier <code>@Published</code>, se actualizan <em>todas</em> las Views que usen ese objeto. Con <code>@Observable</code>, solo se actualiza la View que realmente leyó la propiedad que cambió.'
       }
-    ]
+    ],
+    quiz: {
+      questions: [
+        {
+          question: '¿Cuál es la principal ventaja de @Observable sobre ObservableObject + @Published?',
+          options: [
+            '@Observable permite usar herencia múltiple en ViewModels',
+            'Fine-grained tracking: solo se re-renderiza la View que leyó la propiedad que cambió, no todas las que observan el objeto',
+            '@Observable es compatible con iOS 13+ mientras que ObservableObject requiere iOS 15+',
+            '@Observable elimina la necesidad de usar cualquier property wrapper en las Views'
+          ],
+          correct: 1,
+          explanation: 'Con ObservableObject, si cualquier @Published cambia, TODAS las Views que observan ese objeto se re-renderizan. Con @Observable, SwiftUI rastrea qué propiedades lee cada View y solo re-renderiza aquellas que acceden a la propiedad modificada. Esto reduce drásticamente los renders innecesarios.'
+        },
+        {
+          question: '¿Qué property wrapper usas para crear un Binding a una propiedad de un @Observable?',
+          options: [
+            '@Binding',
+            '@ObservedObject',
+            '@Bindable',
+            '@Observable'
+          ],
+          correct: 2,
+          explanation: '@Bindable es el wrapper necesario para crear Bindings ($viewModel.propiedad) de propiedades de un @Observable. Sin @Bindable, no puedes usar la sintaxis $ para crear Bindings hacia TextField, Toggle, etc. Es el reemplazo de @Binding cuando el origen es un @Observable.'
+        },
+        {
+          question: '¿Cómo declaras el ViewModel en una View que lo crea y posee con @Observable?',
+          options: [
+            '@StateObject private var vm = MyViewModel()',
+            '@ObservedObject private var vm = MyViewModel()',
+            '@State private var vm = MyViewModel()',
+            '@EnvironmentObject private var vm = MyViewModel()'
+          ],
+          correct: 2,
+          explanation: 'Con @Observable (iOS 17+), usas @State para crear y poseer el ViewModel, reemplazando @StateObject. Si solo lo recibes como parámetro, basta con declararlo como var sin wrapper — SwiftUI detecta automáticamente qué propiedades lees. Para Bindings, usarías @Bindable.'
+        },
+        {
+          question: '¿Qué ocurre si una View recibe un @Observable como parámetro sin property wrapper?',
+          code: `struct DetailView: View {
+    var viewModel: DetailViewModel // sin wrapper
+    
+    var body: some View {
+        Text(viewModel.title)
+    }
+}`,
+          options: [
+            'Error de compilación — falta @ObservedObject o @StateObject',
+            'SwiftUI rastrea automáticamente qué propiedades lee la View y solo la re-renderiza cuando esas propiedades cambian',
+            'La View nunca se actualiza porque no hay observation',
+            'Solo funciona si viewModel es @MainActor'
+          ],
+          correct: 1,
+          explanation: 'Esta es una de las ventajas clave de @Observable: no necesitas ningún property wrapper cuando solo observas el objeto. SwiftUI intercepta el acceso a viewModel.title y registra esa dependencia automáticamente. Si title cambia, DetailView se re-renderiza. Si cambia otra propiedad que DetailView no lee, no se re-renderiza.'
+        }
+      ]
+    }
   },
 
   {
@@ -684,7 +739,70 @@ publisher
     .assign(to: \\.name, on: self)
     .store(in: &cancellables)`
       }
-    ]
+    ],
+    quiz: {
+      questions: [
+        {
+          question: '¿Qué es AnyCancellable y por qué debes guardarlo?',
+          options: [
+            'Es el tipo de retorno de todos los Publishers en Combine',
+            'Es el token de suscripción — si no lo guardas en una variable, la suscripción se cancela inmediatamente al salir del ámbito',
+            'Es un operador que cancela automáticamente un Publisher cuando hay un error',
+            'Es el mecanismo para cancelar otros Publishers desde dentro de un operador'
+          ],
+          correct: 1,
+          explanation: 'AnyCancellable es el token devuelto por .sink y .assign. Si no lo guardas (ej: .store(in: &cancellables)), se desaloca al salir del ámbito y la suscripción se cancela inmediatamente. Es un error común: el Publisher no emite valores porque la suscripción murió al instante.'
+        },
+        {
+          question: '¿Cuál es la diferencia entre sink y assign?',
+          options: [
+            'sink es para Publishers síncronos; assign para asíncronos',
+            'sink recibe un closure con el valor emitido; assign asigna directamente el valor a una propiedad de un objeto usando KeyPath',
+            'sink gestiona automáticamente el ciclo de vida; assign requiere limpieza manual',
+            'No hay diferencia — son alias del mismo método'
+          ],
+          correct: 1,
+          explanation: 'sink(completion:indexPath:valueIndexPath:) te da un closure donde procesas cada valor. assign(to:on:) asigna directamente cada valor emitido a una propiedad vía KeyPath — sin closure. assign es más conciso pero sink es más flexible (lógica custom, side effects, logging). Ambos devuelven AnyCancellable que debes guardar.'
+        },
+        {
+          question: '¿Qué hace .debounce(for:scheduler:) en un Publisher?',
+          options: [
+            'Limita la frecuencia de emisión a un máximo de valores por segundo',
+            'Espera un tiempo sin nuevas emisiones antes de propagar el último valor — ideal para búsqueda reactiva donde no quieres una petición por cada tecla',
+            'Reemite el último valor periódicamente mientras no lleguen valores nuevos',
+            'Descarta valores duplicados consecutivos'
+          ],
+          correct: 1,
+          explanation: 'debounce espera un intervalo de silencio (sin nuevos valores) antes de emitir el último valor recibido. Es esencial para búsqueda reactiva: el usuario escribe "Swift" → solo se hace la petición tras 300ms sin pulsaciones. Se combina con .removeDuplicates() para evitar peticiones idénticas.'
+        },
+        {
+          question: '¿Cuándo usarías Combine en lugar de async/await en un proyecto iOS 17+?',
+          options: [
+            'Nunca — async/await reemplaza completamente Combine',
+            'Para streams continuos de valores donde necesitas operadores como debounce, combineLatest, removeDuplicates o throttle',
+            'Solo para compatibilidad con APIs de UIKit que no soportan async/await',
+            'Combine es más rápido que async/await en todas las operaciones de red'
+          ],
+          correct: 1,
+          explanation: 'async/await es ideal para operaciones puntuales (una petición, una lectura). Combine brilla con streams continuos: @Published como Publisher, búsqueda reactiva con debounce, combinar múltiples fuentes con combineLatest, throttle de eventos. En iOS 17+: usa async/await como base y Combine solo donde los operadores reactivos aporten valor real.'
+        },
+        {
+          question: '¿Qué hace replaceError(with:) en este pipeline?',
+          code: `URLSession.shared.dataTaskPublisher(for: url)
+    .map(\\.data)
+    .decode(type: [Product].self, decoder: JSONDecoder())
+    .replaceError(with: [])`,
+          options: [
+            'Reintenta la petición hasta 3 veces y si falla devuelve []',
+            'Captura cualquier error upstream y lo reemplaza con un valor por defecto [], convirtiendo el Failure a Never — el suscriptor nunca recibe un error',
+            'Elimina los valores que no se pueden decodificar y los reemplaza por arrays vacíos',
+            'Registra el error en consola y continúa el pipeline con []'
+          ],
+          correct: 1,
+          explanation: 'replaceError(with:) captura cualquier error del Publisher upstream (error de red, error de decodificación) y lo reemplaza con el valor proporcionado. Esto cambia el tipo de error del Publisher a Never, lo que significa que el suscriptor nunca recibirá un completion con error. Es una forma simple de manejo de errores para casos donde prefieres un valor por defecto.'
+        }
+      ]
+    }
   },
 
   {
@@ -793,7 +911,58 @@ struct TaskListView: View {
     $0.priority > 1 && !$0.isCompleted
 }) var urgentTasks: [Task]`
       }
-    ]
+    ],
+    quiz: {
+      questions: [
+        {
+          question: '¿Cuál es el equivalente en SwiftData de @Entity y @Dao de Room?',
+          options: [
+            '@Entity y @DAO en SwiftData',
+            '@Model y ModelContext',
+            '@Table y @Repository',
+            '@Schema y ModelContainer'
+          ],
+          correct: 1,
+          explanation: '@Model es la macro que convierte una class en un modelo persistido (equivale a @Entity en Room). ModelContext es la sesión de trabajo para insert, delete, save y fetch (equivale al DAO). ModelContainer equivale a @Database y @Query equivale a Flow<List> en Room.'
+        },
+        {
+          question: '¿Para qué sirve @Relationship(deleteRule: .cascade) en SwiftData?',
+          options: [
+            'Define una relación muchos-a-muchos entre modelos sin regla de borrado',
+            'Establece que cuando el modelo padre se elimine, sus modelos hijos relacionados también se eliminen automáticamente en cascada',
+            'Garantiza que la relación sea lazy-loaded para mejorar rendimiento',
+            'Marca la relación como inmutable — los hijos no pueden modificarse independientemente'
+          ],
+          correct: 1,
+          explanation: '@Relationship(deleteRule: .cascade) indica a SwiftData que los modelos hijos deben eliminarse cuando el padre se borra. Sin .cascade, los hijos quedarían huérfanos o el borrado del padre fallaría si hay relaciones obligatorias. Similar a ON DELETE CASCADE en SQL. Otras reglas: .deny (impide el borrado), .nullify (deja la referencia a nil).'
+        },
+        {
+          question: '¿Qué hace @Query en una View de SwiftUI con SwiftData?',
+          options: [
+            'Ejecuta una consulta SQL raw y devuelve el resultado como array',
+            'Es un property wrapper que hace fetch automático de modelos, se re-ejecuta cuando los datos cambian y actualiza la View reactivamente — similar a collectAsState() en Compose con Flow',
+            '@Query es equivalente a @State pero para tipos Model',
+            'Permite consultar datos de forma síncrona bloqueando el thread hasta obtener el resultado'
+          ],
+          correct: 1,
+          explanation: '@Query hace fetch reactivo de modelos SwiftData: la View se actualiza automáticamente cuando los datos cambian (insert, delete, update). Se configura con #Predicate para filtros y sort para ordenación. Es similar a Flow<List> + collectAsState() en Android/Room — observas datos que se actualizan solos.'
+        },
+        {
+          question: '¿Qué genera #Predicate en SwiftData?',
+          code: `@Query(filter: #Predicate<Task> {
+    $0.priority > 1 && !$0.isCompleted
+}) var urgentTasks: [Task]`,
+          options: [
+            'Una closure de Swift que se ejecuta sobre el array de Tasks en memoria',
+            'Un predicado type-safe que SwiftData traduce a SQL/Core Data para ejecutarse eficientemente en la base de datos — no carga todos los objetos en memoria',
+            'Un filtro que solo funciona en el main thread por restricciones de SwiftUI',
+            'Una macro que genera código de fetch request de Core Data automáticamente'
+          ],
+          correct: 1,
+          explanation: '#Predicate{T} genera un Predicate<T> type-safe que SwiftData traduce a la consulta equivalente en la capa de persistencia (Core Data/SQLite). El filtrado ocurre en la base de datos, no en memoria — es mucho más eficiente que cargar todos los objetos y filtrar en Swift. La sintaxis es type-safe: el compilador verifica tipos de propiedades.'
+        }
+      ]
+    }
   },
 
   {
@@ -1069,7 +1238,59 @@ Card {
     ForEach(users) { UserRow(user: $0) }
 }`
       }
-    ]
+    ],
+    quiz: {
+      questions: [
+        {
+          question: '¿Por qué es buena práctica crear una extensión de View al definir un ViewModifier?',
+          options: [
+            'Porque el ViewModifier no funciona sin la extensión',
+            'Para permitir un uso más limpio y expresivo: .primaryButtonStyle() en lugar de .modifier(PrimaryButtonStyle())',
+            'Porque Swift no soporta la función .modifier() directamente',
+            'Para mejorar el rendimiento de la compilación de SwiftUI'
+          ],
+          correct: 1,
+          explanation: 'Crear una extensión extension View { func primaryButtonStyle(...) -> some View { modifier(PrimaryButtonStyle(...)) } } te permite usar .primaryButtonStyle() como un modifier más del sistema — mucho más limpio que .modifier(PrimaryButtonStyle()). Sigues la misma convención que .bold(), .font(), .padding() que Apple define con ViewModifier + extensión.'
+        },
+        {
+          question: '¿Qué problema resuelve @ViewBuilder en una función que retorna View?',
+          options: [
+            'Hace que la View se re-renderice más rápido al compilar el body en tiempo de compilación',
+            'Permite usar if/else y switch dentro de la función para retornar diferentes tipos de View sin que el compilador rechace la firma por tipo de retorno ambiguo',
+            '@ViewBuilder permite que una función retorne múltiples Views simultáneamente como un array',
+            'Es obligatorio en todas las funciones que retornan some View en SwiftUI'
+          ],
+          correct: 1,
+          explanation: 'Sin @ViewBuilder, una función func badge(for status:) -> some View no puede retornar Text en un caso y HStack en otro — el compilador exige un tipo concreto de retorno. @ViewBuilder (un @resultBuilder) transforma los if/switch en TupleView o _ConditionalContent, permitiendo retornar tipos diferentes en cada rama. Es lo que permite el body de cualquier View usar if/switch.'
+        },
+        {
+          question: '¿Qué es @resultBuilder y cómo se relaciona con @ViewBuilder?',
+          options: [
+            '@resultBuilder es un protocolo que @ViewBuilder implementa para definir layouts',
+            '@resultBuilder es la tecnología subyacente — @ViewBuilder es simplemente un @resultBuilder especializado en construir árboles de Views mediante transformación de DSL',
+            '@resultBuilder es un mecanismo de caching de Views; @ViewBuilder es su implementación para listas',
+            'Son conceptos independientes — @resultBuilder se usa en Concurrencia y @ViewBuilder en UI'
+          ],
+          correct: 1,
+          explanation: '@resultBuilder es la tecnología de Swift que permite crear DSLs (Domain Specific Languages). Transforma bloques de código (if, for, switch) en valores compuestos. @ViewBuilder es un @resultBuilder específico de SwiftUI que transforma el código del body en un árbol de Views. SwiftUI está construido enteramente sobre result builders — no solo @ViewBuilder.'
+        },
+        {
+          question: '¿Qué ventaja tiene un contenedor genérico con @ViewBuilder closures?',
+          code: `struct Card<Header: View, Content: View>: View {
+    @ViewBuilder let header: () -> Header
+    @ViewBuilder let content: () -> Content
+}`,
+          options: [
+            'Permite usar Core Data dentro del contenedor',
+            'El contenedor acepta cualquier tipo de View en sus slots (header, content) sin sacrificar el tipado estático — el compilador conoce los tipos reales para optimización',
+            'Oculta los tipos internos de View para reducir el tamaño del binario',
+            'Es la única forma de pasar Views como parámetros en SwiftUI'
+          ],
+          correct: 1,
+          explanation: 'Los genéricos <Header: View, Content: View> permiten que el contenedor Card acepte cualquier tipo de View sin perder tipado estático — el compilador conoce los tipos concretos y puede optimizar. @ViewBuilder en los closures permite if/switch dentro de cada slot. Este patrón es el que usa VStack { }, HStack { }, y todos los contenedores de SwiftUI.'
+        }
+      ]
+    }
   },
 
   {
@@ -1172,7 +1393,61 @@ struct ParentView: View {
     }
 }`
       }
-    ]
+    ],
+    quiz: {
+      questions: [
+        {
+          question: '¿Qué proporciona GeometryReader y para qué se usa principalmente?',
+          options: [
+            'Proporciona el tamaño y posición del contenedor donde se encuentra, permitiendo layouts adaptativos basados en el espacio disponible',
+            'Reemplaza completamente a VStack y HStack en iOS 17+ para layouts complejos',
+            'Es un property wrapper que observa cambios en el frame de la View',
+            'Conecta automáticamente datos entre Views padre e hijo sin necesidad de @Binding'
+          ],
+          correct: 0,
+          explanation: 'GeometryReader expone un GeometryProxy con size y frame del contenedor. Se usa para layouts que necesitan adaptarse al espacio disponible (ej: landscape vs portrait, diferentes tamaños de pantalla). Sin embargo, para casos simples, iOS 17+ ofrece .containerRelativeFrame como alternativa más ligera que evita los problemas de layout que GeometryReader puede causar, como ciclos de layout o tamaños inesperados.'
+        },
+        {
+          question: '¿Qué función tiene el método reduce en un PreferenceKey?',
+          code: `struct HeightPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}`,
+          options: [
+            'Fusiona los valores de múltiples hijos que reportan la misma PreferenceKey, combinándolos según la lógica definida (aquí, la altura máxima)',
+            'Reduce el número de renders al cachear el último valor enviado',
+            'Compara el nuevo valor con el anterior y solo notifica si hay cambios significativos',
+            'Redimensiona el contenedor padre para ajustarse al valor más grande recibido'
+          ],
+          correct: 0,
+          explanation: 'reduce(value:nextValue:) es el método que PreferenceKey usa para combinar valores cuando múltiples hijos reportan la misma clave. SwiftUI llama a reduce por cada valor recibido, permitiendo combinar todos en uno solo. En el ejemplo, se usa max() para obtener la altura máxima entre todos los hijos. defaultValue es el valor inicial antes de recibir cualquier preferencia, y reduce debe manejar correctamente la acumulación.'
+        },
+        {
+          question: '¿Cómo logra PreferenceKey la comunicación de hijo a padre en SwiftUI?',
+          options: [
+            'El hijo inyecta un objeto en el Environment y el padre lo recibe mediante @Environment',
+            'El hijo usa .preference(key:value:) para enviar datos y el padre los recibe con .onPreferenceChange',
+            'El padre pasa un Closure al hijo y el hijo lo ejecuta con los datos',
+            'SwiftUI no permite comunicación directa de hijo a padre sin @Binding'
+          ],
+          correct: 1,
+          explanation: 'PreferenceKey es el mecanismo oficial para comunicación hijo→padre en SwiftUI: el hijo llama a .preference(key: HeightPreferenceKey.self, value: altura) y el padre escucha con .onPreferenceChange(HeightPreferenceKey.self) { value in ... }. Esto permite que hijos reporten sus dimensiones o posiciones a ancestros, útil para sticky headers, tab bars personalizadas o medir alturas dinámicas.'
+        },
+        {
+          question: '¿Qué alternativa introdujo iOS 17+ para reemplazar GeometryReader en casos simples de layout responsivo?',
+          options: [
+            'AdaptiveLayout — un contenedor que ajusta automáticamente la disposición de sus hijos',
+            '.containerRelativeFrame — un modifier que divide el espacio disponible en partes iguales sin necesidad de GeometryReader',
+            'FlexibleFrame — un PropertyWrapper para definir tamaños flexibles',
+            'iOS 17 eliminó GeometryReader y solo permite .containerRelativeFrame'
+          ],
+          correct: 1,
+          explanation: '.containerRelativeFrame(_:count:span:spacing:) es un modifier de iOS 17+ que permite layouts responsivos sin GeometryReader. Ejemplo: .containerRelativeFrame(.horizontal, count: 3, span: 2, spacing: 8) hace que la View ocupe 2 de 3 columnas del contenedor. Es más ligero, evita los problemas de ciclos de GeometryReader, y es suficiente para la mayoría de casos de layout adaptativo.'
+        }
+      ]
+    }
   },
 
   {
@@ -1283,7 +1558,77 @@ struct ProgressArc: Shape, Animatable {
     }
 }`
       }
-    ]
+    ],
+    quiz: {
+      questions: [
+        {
+          question: '¿Cuál es la diferencia entre withAnimation { } y .animation(value:) { } en SwiftUI?',
+          options: [
+            'Son equivalentes — ambos producen el mismo resultado y se usan indistintamente',
+            'withAnimation { } anima todos los cambios de estado dentro del bloque; .animation(.spring(), value:) anima el modifier solo cuando esa variable específica cambia',
+            'withAnimation solo funciona en iOS 16+; .animation(value:) en iOS 15+',
+            'withAnimation es para animaciones explícitas de Views; .animation(value:) es para animaciones implícitas'
+          ],
+          correct: 1,
+          explanation: 'withAnimation { state = newValue } es animación implícita: todos los cambios de estado dentro del bloque se animan automáticamente en la siguiente renderización. .animation(.spring(), value: scale) es explícita: anima el modifier (scaleEffect, opacity, etc.) únicamente cuando el valor observado especificado en value: cambia. withAnimation es mejor para animar múltiples propiedades simultáneamente; .animation(value:) para animar efectos visuales ligados a un valor concreto.'
+        },
+        {
+          question: '¿Qué se necesita para crear una animación "hero" (shared element transition) con matchedGeometryEffect?',
+          options: [
+            '.matchedGeometryEffect(id:in:) y un @Namespace — ambas Views comparten el mismo id y namespace, y SwiftUI interpola automáticamente posición, tamaño y forma',
+            '.heroTransition(id:in:) y un HeroNamespace — son modifiers dedicados de iOS 17+',
+            '.sharedElement(id:namespace:) y un @SharedNamespace',
+            'No hay soporte nativo — debes implementarlo manualmente con GeometryReader y animaciones personalizadas'
+          ],
+          correct: 0,
+          explanation: 'matchedGeometryEffect(id: "hero", in: heroNamespace) permite transiciones compartidas entre dos Views que representan el mismo elemento conceptual. Con @Namespace var heroNamespace, declaras un espacio de nombres. Cuando una View aparece y otra desaparece (usando if/else), SwiftUI interpola automáticamente posición, tamaño, forma y otros parámetros visuales, creando una transición fluida. Es la versión SwiftUI de las shared element transitions de Android.'
+        },
+        {
+          question: '¿Para qué sirve .asymmetric(insertion:removal:) en las transiciones?',
+          code: `.transition(.asymmetric(
+    insertion: .scale.combined(with: .opacity),
+    removal: .slide
+))`,
+          options: [
+            'Define animaciones diferentes para la entrada y la salida de una View, permitiendo que aparezca escalando con opacidad y desaparezca deslizándose',
+            'Hace que la transición sea asíncrona para mejorar el rendimiento en animaciones complejas',
+            'Permite que la animación solo se ejecute en dispositivos con pantallas ProMotion',
+            'Combina dos transiciones asimétricas en una sola animación simétrica'
+          ],
+          correct: 0,
+          explanation: '.asymmetric(insertion:removal:) permite personalizar la transición de entrada (cuando la View aparece) y la de salida (cuando desaparece) de forma independiente. En el ejemplo: insertion usa scale + opacity, removal usa slide. Sin .asymmetric, la misma transición se aplica en ambas direcciones. .combined(with:) permite combinar múltiples transiciones en una sola (como scale y opacity simultáneamente).'
+        },
+        {
+          question: '¿Qué protocolo permite animar propiedades personalizadas en una Shape?',
+          code: `struct ProgressArc: Shape, ________ {
+    var progress: Double
+    var animatableData: Double {
+        get { progress }
+        set { progress = newValue }
+    }
+}`,
+          options: [
+            'AnimatableShape',
+            'Animatable',
+            'ProgressAnimatable',
+            'AnimatedShape'
+          ],
+          correct: 1,
+          explanation: 'El protocolo Animatable requiere implementar animatableData: el tipo de dato que SwiftUI interpolará durante la animación. Cuando progress cambia de 0.0 a 1.0 dentro de withAnimation, SwiftUI llama repetidamente animatableData con valores intermedios (0.0, 0.1, 0.2... 1.0) y redibuja la Shape en cada paso. Esto permite animar cualquier propiedad, no solo las predefinidas como scaleEffect u opacity.'
+        },
+        {
+          question: '¿Cuál es la ventaja de los presets .bouncy y .smooth introducidos en iOS 17+?',
+          options: [
+            'Son presets de animación spring con valores por defecto optimizados: .bouncy para animaciones con rebote natural y .smooth para transiciones suaves sin rebote',
+            'Son más rápidos que los presets anteriores porque usan animaciones basadas en GPU',
+            '.bouncy y .smooth solo funcionan en dispositivos con iOS 17+ y reemplazan completamente a .spring() y .easeInOut',
+            'No hay diferencia con .spring() — son solo alias para mantener consistencia de nombres'
+          ],
+          correct: 0,
+          explanation: 'iOS 17+ introdujo .bouncy, .smooth y .snappy como presets que encapsulan valores de spring animation optimizados. .bouncy tiene un rebote marcado (bounce ≈ 0.3) ideal para animaciones llamativas. .smooth no tiene rebote, para transiciones elegantes. .snappy es rápida con poco rebote. Internamente son .spring(duration:bounce:) con valores predefinidos. Cada uno elimina la necesidad de ajustar manualmente duración y bounce.'
+        }
+      ]
+    }
   },
 
   {
@@ -1433,6 +1778,76 @@ class UserListUITests: XCTestCase {
     }
 }`
       }
-    ]
+    ],
+    quiz: {
+      questions: [
+        {
+          question: '¿Cuál es la principal ventaja de Swift Testing (iOS 17+) sobre XCTest clásico?',
+          options: [
+            'Swift Testing es 10x más rápido que XCTest al ejecutar tests en GPU',
+            'Swift Testing usa macros (@Test, @Suite) sin necesidad de heredar de XCTestCase, tiene #expect/#require más legibles, y soporta async/throws nativamente',
+            'Swift Testing solo funciona con SwiftUI; XCTest funciona con UIKit y SwiftUI',
+            'Swift Testing es un wrapper de XCTest con una sintaxis más moderna, pero funcionalmente equivalente'
+          ],
+          correct: 1,
+          explanation: 'Swift Testing (iOS 17+, Xcode 16+) es un framework independiente de XCTest. Ventajas: @Test/@Suite macros (sin herencia), #expect(condición) con mensajes de error automáticos más claros que XCTAssert*, #require(optional) que falla limpiamente si es nil, soporte nativo de async/throws en funciones de test, ejecución paralela por defecto, y tests parametrizados con arguments:. No es un wrapper — es un framework nuevo diseñado para el Swift moderno.'
+        },
+        {
+          question: '¿Qué hace #require en Swift Testing y en qué se diferencia de #expect?',
+          options: [
+            'Son equivalentes — ambos verifican condiciones y fallan si no se cumplen',
+            '#expect verifica una condición y continúa si falla (fail); #require desempaqueta un optional o falla el test inmediatamente, interrumpiendo la ejecución',
+            '#require solo funciona con valores booleanos; #expect funciona con cualquier tipo',
+            '#require es para setUp de tests; #expect para las aserciones principales'
+          ],
+          correct: 1,
+          explanation: '#expect(condición) registra un fallo si la condición es false pero CONTINÚA la ejecución del test — útil para múltiples verificaciones en un mismo test. #require(optional) desempaqueta el valor o FALLA EL TEST INMEDIATAMENTE — útil para valores que deben existir para que el resto del test tenga sentido (ej: desempaquetar un elemento antes de interactuar con él). #require asegura que no se ejecuten más líneas si el requisito no se cumple.'
+        },
+        {
+          question: '¿Cómo se define un test parametrizado en Swift Testing?',
+          code: `@Test("Search filters", arguments: [
+    ("Ana", 1),
+    ("a", 2),
+    ("xyz", 0)
+])
+func testSearch(query: String, expectedCount: Int) async {
+    let vm = SearchViewModel()
+    vm.query = query
+    try? await Task.sleep(for: .milliseconds(400))
+    #expect(vm.results.count == expectedCount)
+}`,
+          options: [
+            'Se usa un bucle for dentro de @Test para iterar sobre los argumentos manualmente',
+            'Se pasa un array de tuplas al parámetro arguments: de @Test y el framework ejecuta automáticamente el test una vez por cada juego de argumentos, reportando resultados individuales',
+            'Los tests parametrizados solo existen en XCTest con @parametrizedTest',
+            'Se usa @ParametrizedTest en lugar de @Test y se pasa un DataProvider como en XCTest'
+          ],
+          correct: 1,
+          explanation: 'Swift Testing soporta tests parametrizados con arguments: en @Test. El framework ejecuta el test una vez por cada conjunto de valores en el array, reportando cada ejecución individualmente en los resultados. Es ideal para probar múltiples casos de entrada/salida sin duplicar código. Cada combinación aparece como un test independiente en Xcode, facilitando identificar cuál falla.'
+        },
+        {
+          question: '¿Por qué es recomendable usar un Actor para los Mocks en Swift Testing?',
+          options: [
+            'Los Actors son más rápidos que las clases para tests de rendimiento',
+            'Para garantizar que el mock sea thread-safe cuando se accede desde múltiples tests en paralelo — Swift Testing ejecuta tests en paralelo por defecto',
+            'Swift Testing exige que todos los Mocks sean Actors — no acepta clases ni structs',
+            'Los Actors simplifican la sintaxis de los Mocks eliminando la necesidad de protocolos'
+          ],
+          correct: 1,
+          explanation: 'Swift Testing ejecuta tests en paralelo por defecto. Si los Mocks son clases con estado mutable, pueden ocurrir data races cuando múltiples tests acceden al mismo mock simultáneamente. Usar un Actor para el Mock garantiza (en tiempo de compilación) que el acceso a su estado interno es thread-safe. Además, el uso de await para acceder al Actor en los tests hace explícita la sincronización — no hay riesgos de condiciones de carrera.'
+        },
+        {
+          question: '¿Para qué se usa app.launchArguments = ["--uitesting"] en XCUITest?',
+          options: [
+            'Para configurar tiempo de espera de lanzamiento en tests de UI lentos',
+            'Para pasar un flag a la app que permita cambiar la configuración (ej: usar Mocks en lugar del API real, resetear estado) durante el test de UI',
+            'Para habilitar logging detallado en los tests de UI',
+            'Para especificar qué dispositivos soportan los tests de UI'
+          ],
+          correct: 1,
+          explanation: 'XCUIApplication.launchArguments permite pasar argumentos de lanzamiento a la app durante el test de UI. La app puede leer estos argumentos en tiempo de ejecución (ProcessInfo.processInfo.arguments.contains("--uitesting")) y cambiar su comportamiento: usar repositorios mock, resetear datos, deshabilitar animaciones, etc. Es la forma estándar de configurar la app para tests de UI sin modificar el código de producción.'
+        }
+      ]
+    }
   }
 ]

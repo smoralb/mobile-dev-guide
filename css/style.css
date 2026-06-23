@@ -996,3 +996,210 @@ mark.search-highlight {
   transform: translateX(3px);
   color: var(--accent, var(--android));
 }
+
+/* ─── Overall Progress Bar ───────────────────────────────── */
+.program-overall-progress {
+  margin-top: 14px;
+  text-align: left;
+}
+
+.program-overall-bar {
+  width: 100%;
+  height: 8px;
+  background: var(--surface);
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.program-overall-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent, var(--android)), var(--accent, var(--ios)));
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+
+.program-overall-text {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* ─── Phase Progress Bar ─────────────────────────────────── */
+.phase-progress-bar {
+  position: relative;
+  margin: 10px 16px;
+  height: 6px;
+  background: var(--bg);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.phase-progress-fill {
+  height: 100%;
+  background: var(--accent, var(--android));
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+
+.phase-progress-text {
+  position: absolute;
+  right: 0;
+  top: -18px;
+  font-size: 0.6875rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* ─── Phase Lock Overlay ─────────────────────────────────── */
+.program-phase.phase-locked {
+  opacity: 0.55;
+  position: relative;
+}
+
+.phase-lock-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: rgba(15, 15, 19, 0.7);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  cursor: default;
+}
+
+.phase-lock-icon {
+  font-size: 1.75rem;
+}
+
+.phase-lock-text {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* ─── Phase Passed Badge ─────────────────────────────────── */
+.phase-passed-badge {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: #3ddc84;
+  background: rgba(61, 220, 132, 0.12);
+  padding: 4px 10px;
+  border-radius: 12px;
+  white-space: nowrap;
+}
+
+.program-phase.phase-passed {
+  border-color: rgba(61, 220, 132, 0.3);
+}
+
+/* ─── Lesson States ──────────────────────────────────────── */
+.program-lesson-item.completed {
+  opacity: 0.7;
+}
+
+.program-lesson-item.locked {
+  opacity: 0.4;
+  cursor: default;
+  pointer-events: none;
+}
+
+.program-lesson-item.locked:hover {
+  background: transparent;
+}
+
+.program-lesson-check {
+  font-size: 0.875rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.program-lesson-lock {
+  font-size: 0.8125rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.program-lesson-done {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #3ddc84;
+  flex-shrink: 0;
+}
+
+/* ─── Phase Quiz (gate) ──────────────────────────────────── */
+.phase-quiz-section {
+  border-top: 1px solid var(--border);
+  margin-top: 0;
+}
+
+.phase-quiz-divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent, var(--android));
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--accent-dim, var(--android-dim));
+  border-bottom: 1px solid var(--border);
+}
+
+.phase-quiz-divider span {
+  flex: 1;
+}
+
+.phase-quiz-section .quiz-section {
+  margin-top: 0;
+  border-top: none;
+  padding: 16px;
+}
+
+/* ─── Phase Next Button ──────────────────────────────────── */
+.phase-next-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 10px 22px;
+  background: var(--accent, var(--android));
+  color: #000;
+  border: none;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.phase-next-btn:hover { opacity: 0.85; }
+
+/* ─── Sidebar Progress Badge ──────────────────────────────── */
+.sidebar-progress-badge {
+  margin-left: auto;
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  background: var(--bg);
+  padding: 2px 7px;
+  border-radius: 8px;
+}
+
+.sidebar-item-check {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: #3ddc84;
+  flex-shrink: 0;
+}

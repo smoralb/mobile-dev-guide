@@ -1148,7 +1148,85 @@ class ProductViewModel @Inject constructor(
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 }`
       }
-    ]
+    ],
+    quiz: {
+      questions: [
+        {
+          question: '¿Cuál es la diferencia fundamental entre el modelo pull y el modelo push en programación reactiva?',
+          options: [
+            'Pull es más eficiente en memoria; push consume más CPU',
+            'En pull, el consumidor pide los datos activamente (ej: solicitud HTTP); en push, el productor emite los datos y el consumidor reacciona automáticamente (ej: Flow, Observer)',
+            'Pull funciona solo con tipos primitivos; push requiere objetos complejos',
+            'No hay diferencia práctica, son sinónimos en el contexto reactivo'
+          ],
+          correct: 1,
+          explanation: 'En el modelo pull, el consumidor solicita los datos cuando los necesita (ej: llamada síncrona a API). En el modelo push, el productor emite cambios y el consumidor reacciona. La programación reactiva se basa en push: la UI no pide datos — se suscribe a un stream y reacciona cuando llegan nuevos valores.'
+        },
+        {
+          question: 'En el patrón reactivo end-to-end, ¿qué rol cumple Room como origen del Flow?',
+          code: `@Dao
+interface ProductDao {
+    @Query("SELECT * FROM products")
+    fun observeAll(): Flow<List<ProductEntity>>
+}`,
+          options: [
+            'Room ejecuta la query una vez y cachea el resultado para todos los collectors',
+            'Room emite un nuevo valor cada vez que la tabla cambia — la DB es la fuente de verdad reactiva que propaga cambios automáticamente a toda la cadena',
+            'Room convierte queries síncronas en corrutinas con Deferred internamente',
+            'El Flow de Room solo emite cuando la app vuelve a primer plano'
+          ],
+          correct: 1,
+          explanation: 'Room retorna un Flow que emite el resultado de la query inmediatamente y luego re-emite cada vez que cualquier transacción modifica la tabla observada. Esto convierte la BD en la fuente de verdad reactiva: Repository → UseCase → ViewModel → UI, todos reaccionan automáticamente sin polling manual.'
+        },
+        {
+          question: '¿Qué hace el operador combine en este UseCase reactivo?',
+          code: `fun getFilteredProducts(
+    minPrice: StateFlow<Double>,
+    searchQuery: StateFlow<String>
+): Flow<List<Product>> =
+    repository.getProductsForUser()
+        .combine(minPrice) { products, min -> products.filter { it.price >= min } }
+        .combine(searchQuery.debounce(300)) { products, query ->
+            if (query.isEmpty()) products
+            else products.filter { it.name.contains(query, ignoreCase = true) }
+        }`,
+          options: [
+            'Ejecuta todas las operaciones en paralelo y retorna la que termina primero',
+            'Cada vez que cualquier Flow fuente emite, recalcula el resultado usando el último valor de los demás — cualquier cambio en productos, precio mínimo o búsqueda actualiza los resultados',
+            'Solo emite cuando TODOS los Flows emiten exactamente al mismo tiempo',
+            'combine es equivalente a zip: espera a que cada Flow emita un nuevo valor antes de combinar'
+          ],
+          correct: 1,
+          explanation: 'combine emite cada vez que cualquier Flow fuente emite un nuevo valor, usando el último valor conocido de los demás. Si cambian los productos de BD, el precio mínimo o la búsqueda, los resultados se recalculan automáticamente. Esto crea una UI puramente reactiva donde el usuario ve resultados actualizados sin acciones manuales.'
+        },
+        {
+          question: '¿Por qué se usa stateIn con WhileSubscribed(5000) en el ViewModel del patrón reactivo end-to-end?',
+          code: `val products: StateFlow<List<Product>> =
+    getFilteredProducts(minPrice, searchQuery)
+        .catch { emit(emptyList()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())`,
+          options: [
+            'Para que el Flow se convierta en cold y se reinicie con cada collector',
+            'Para convertir el cold Flow en un hot StateFlow: compartir una única suscripción upstream entre múltiples collectors y pausar el upstream cuando no hay suscriptores, con un timeout de 5s para sobrevivir rotaciones',
+            'Para mantener un buffer de 5000 elementos emitidos que los nuevos collectors pueden reproducir',
+            'stateIn es obligatorio para que Room pueda emitir Flows correctamente'
+          ],
+          correct: 1,
+          explanation: 'stateIn convierte el cold flow en un hot StateFlow: (1) una sola suscripción al upstream compartida entre todos los collectors, (2) WhileSubscribed(5000) cancela el upstream cuando no hay collectors (liberando recursos), pero espera 5s antes de hacerlo para evitar parar y reanudar durante rotaciones de pantalla (~1-2s).'
+        },
+        {
+          question: '¿Cuál es la evolución correcta de las soluciones reactivas en Android y por qué Kotlin Flow es el estándar actual?',
+          options: [
+            'AsyncTask → Handler → RxJava — cada uno más potente que el anterior',
+            'RxJava (potente pero curva de aprendizaje alta) → LiveData (simple, lifecycle-aware, sin operadores) → Kotlin Flow (integrado con coroutines, operadores ricos, cancelación automática)',
+            'LiveData → RxJava → Kotlin Flow — LiveData era el más potente, Flow es el más simple',
+            'RxJava y Kotlin Flow son equivalentes; Flow se adoptó porque es más nuevo'
+          ],
+          correct: 1,
+          explanation: 'RxJava fue popular hasta ~2019 por su potencia, pero su curva de aprendizaje y threading manual lo hacían complejo. LiveData simplificó la observación lifecycle-aware pero carece de operadores de transformación. Kotlin Flow combina lo mejor de ambos: operadores ricos como RxJava, integración nativa con coroutines, cancelación automática y simplicidad de Kotlin.'
+        }
+      ]
+    }
   },
 
   {
