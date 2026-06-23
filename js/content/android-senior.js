@@ -1507,7 +1507,7 @@ val length = user?.run {          // this = user, retorna el resultado
 val intent = Intent()._____ { putExtra("id", 1); addFlags(0) }
 
 // Operar si no es null, retornar resultado transformado:
-val name = user?._____{ "${it.firstName} ${it.lastName}" }`,
+val name = user?._____{ "\${it.firstName} \${it.lastName}" }`,
           options: [
             'apply, let',
             'run, also',
@@ -2053,7 +2053,7 @@ class CacheFirstStrategy(private val cache: Cache, private val api: Api) : Cache
 class AuthInterceptor(private val tokenProvider: TokenProvider) : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request().newBuilder()
-            .addHeader("Authorization", "Bearer ${tokenProvider.getToken()}")
+            .addHeader("Authorization", "Bearer \${tokenProvider.getToken()}")
             .build()
         return chain.proceed(request)  // decora la request original
     }
